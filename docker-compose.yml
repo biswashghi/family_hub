@@ -1,0 +1,19 @@
+services:
+  family-hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: family-hub:local
+    container_name: family-hub
+    ports:
+      - "8788:8788"
+    environment:
+      NODE_ENV: production
+      PORT: "8788"
+      DATA_DIR: /app/data
+    volumes:
+      - family-hub-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  family-hub-data:

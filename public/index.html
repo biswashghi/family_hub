@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Family Hub</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="topbar">
+        <div>
+          <h1>Family Hub</h1>
+          <p class="subtitle">Shared bills, payments, and important family documents</p>
+        </div>
+        <div class="actionRow">
+          <span id="healthBadge" class="badge">Checking…</span>
+          <button type="button" id="logoutBtn" class="ghost">Log out</button>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="bills">Bills & Payments</button>
+        <button class="tab" data-tab="docs">Family Documents</button>
+      </nav>
+
+      <section id="tab-bills" class="tabpanel active">
+        <div class="panel">
+          <div class="panelHeader">
+            <div>
+              <h2>Active Bills</h2>
+              <p class="subtitle">Open bills and shared card payments</p>
+            </div>
+            <div class="actionRow">
+              <label class="inline">
+                List view
+                <select id="billViewSelect">
+                  <option value="active">Upcoming (open only)</option>
+                </select>
+              </label>
+              <button type="button" id="billOpenEditorBtn" class="primary">Add bill</button>
+            </div>
+          </div>
+          <div class="panelBody">
+            <div id="billSummary" class="summaryGrid"></div>
+            <div class="filtersCard">
+              <div class="formGrid">
+                <label>Category filter
+                  <select id="billFilterCategory">
+                    <option value="">All</option>
+                    <option value="utility">utility</option>
+                    <option value="shared_card">shared_card</option>
+                    <option value="home">home</option>
+                    <option value="insurance">insurance</option>
+                    <option value="other">other</option>
+                  </select>
+                </label>
+                <label>Owner/payer filter<input id="billFilterOwner" placeholder="e.g. Biswash" /></label>
+                <label>Card/account filter<input id="billFilterSource" placeholder="Shared Checking / Visa" /></label>
+                <label>Autopay filter
+                  <select id="billFilterAutopay">
+                    <option value="">All</option>
+                    <option value="yes">Autopay on</option>
+                    <option value="no">Autopay off</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="calendarCard">
+              <div class="calendarHead">
+                <div>
+                  <strong>Active bill calendar</strong>
+                  <div class="subtitle">Monthly view (open bills only)</div>
+                </div>
+                <div class="actionRow">
+                  <button type="button" id="billCalPrevBtn">←</button>
+                  <button type="button" id="billCalTodayBtn" class="primary">Today</button>
+                  <span id="billCalLabel" class="pill"></span>
+                  <button type="button" id="billCalNextBtn">→</button>
+                </div>
+              </div>
+              <div class="calendarWeekdays">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+              </div>
+              <div id="billCalendarGrid" class="calendarGrid"></div>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Next pay date</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Source</th>
+                    <th>Responsibility</th>
+                    <th>Amount</th>
+                    <th>Recurrence</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="billRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <section id="tab-docs" class="tabpanel">
+        <div class="panel">
+          <div class="panelHeader">
+            <div>
+              <h2>Family Docs & Manuals</h2>
+              <p class="subtitle">Store vaccination papers, manuals, and key household files</p>
+            </div>
+          </div>
+          <div class="panelBody">
+            <form id="docForm" class="formGrid" enctype="multipart/form-data">
+              <label>Title<input id="docTitle" required placeholder="Child vaccination record" /></label>
+              <label>Type
+                <select id="docType" required>
+                  <option value="vaccination">vaccination</option>
+                  <option value="manual">manual</option>
+                  <option value="insurance">insurance</option>
+                  <option value="identity">identity</option>
+                  <option value="other">other</option>
+                </select>
+              </label>
+              <label>Category<input id="docCategory" placeholder="health, kitchen, car..." /></label>
+              <label>Tags<input id="docTags" placeholder="comma,separated,tags" /></label>
+              <label class="full">Notes<textarea id="docNotes" rows="3"></textarea></label>
+              <label class="full">Upload file<input id="docFile" type="file" required /></label>
+              <div class="actions full">
+                <button type="submit" class="primary">Upload document</button>
+              </div>
+            </form>
+
+            <div class="tableWrap" style="margin-top: 1rem">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Size</th>
+                    <th>Uploaded</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="docRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="billModal" class="modalOverlay hidden" aria-hidden="true">
+      <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="billFormTitle">
+        <div class="panelHeader">
+          <div>
+            <h2 id="billFormTitle">Add Bill / Payment Item</h2>
+            <p class="subtitle">Draft is kept when you close. Use Reset to discard changes.</p>
+          </div>
+          <button type="button" id="billModalCloseBtn" class="ghost">Close</button>
+        </div>
+        <div class="panelBody">
+          <form id="billForm" class="formGrid">
+            <input type="hidden" id="billId" />
+            <label>Title<input id="billTitle" required placeholder="Electric Utility" /></label>
+            <label>Category
+              <select id="billCategory" required>
+                <option value="utility">utility</option>
+                <option value="shared_card">shared_card</option>
+                <option value="home">home</option>
+                <option value="insurance">insurance</option>
+                <option value="other">other</option>
+              </select>
+            </label>
+            <label>Amount<input id="billAmount" type="number" step="0.01" min="0" required /></label>
+            <label>First due date<input id="billDueDate" type="date" required /></label>
+            <label>Repeat every<input id="billRecurrenceInterval" type="number" min="1" step="1" value="1" required /></label>
+            <label>Recurrence unit
+              <select id="billRecurrenceUnit">
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month" selected>month</option>
+                <option value="year">year</option>
+                <option value="one_time">one_time</option>
+              </select>
+            </label>
+            <label id="billRecurrenceDayWrap">Preferred day of month (month/year)<input id="billRecurrenceDayOfMonth" type="number" min="1" max="31" placeholder="15" /></label>
+            <label>End date (optional)<input id="billRecurrenceEndDate" type="date" /></label>
+            <label>Payment source<input id="billSource" placeholder="Shared Checking" /></label>
+            <label>Payer (who pays)<input id="billPayer" placeholder="Biswash" /></label>
+            <label>Confirmer (who confirms)<input id="billConfirmer" placeholder="Parent 2" /></label>
+            <label>Status
+              <select id="billStatus">
+                <option value="open">open</option>
+                <option value="paid">paid</option>
+              </select>
+            </label>
+            <label class="checkboxRow">
+              <input id="billAutopay" type="checkbox" />Autopay enabled
+            </label>
+            <label class="full">Notes<textarea id="billNotes" rows="3" placeholder="Optional notes"></textarea></label>
+            <div class="actions full">
+              <button type="button" id="billResetBtn" class="ghost">Reset</button>
+              <button type="submit" class="primary" id="billSubmitBtn">Save bill</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+  </html>

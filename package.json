@@ -1,0 +1,22 @@
+{
+  "name": "family-hub",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "test:e2e": "node --test tests/e2e/*.test.js",
+    "docker:build": "docker build -t family-hub:local .",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.2"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.40.0"
+  }
+}
