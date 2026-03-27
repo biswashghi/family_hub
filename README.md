@@ -40,6 +40,18 @@ docker compose up -d --build
 docker compose down
 ```
 
+## Hetzner Production Deployment (Shared Proxy)
+
+Start deployment from:
+- [/Users/biswash/Documents/repos/hetzner_tf/README.md](/Users/biswash/Documents/repos/hetzner_tf/README.md)
+
+Family Hub deploy uses Bitwarden credentials via the shared wrapper:
+- Default item: `family-hub-prod-credentials`
+- Default fields: `username`, `password`
+
+App-specific verify endpoint:
+- `https://<family_domain>/login`
+
 ## E2E tests (Puppeteer)
 ```bash
 npm run test:e2e
