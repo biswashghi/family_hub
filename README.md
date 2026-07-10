@@ -43,7 +43,7 @@ docker compose down
 ## Hetzner Production Deployment (Shared Proxy)
 
 Start deployment from:
-- [/Users/biswash/Documents/repos/hetzner_tf/README.md](/Users/biswash/Documents/repos/hetzner_tf/README.md)
+- [Hetzner deployment runbook](https://github.com/biswashghi/hetzner_tf/blob/main/README.md)
 
 Family Hub deploy uses Bitwarden credentials via the shared wrapper:
 - Default item: `family-hub-prod-credentials`
