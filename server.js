@@ -26,6 +26,7 @@ const WEATHER_LATITUDE = config.weatherLatitude;
 const WEATHER_LONGITUDE = config.weatherLongitude;
 const SEED_DEMO_DATA = config.seedDemoData;
 const sessions = new Map();
+const BILL_AMOUNT_TYPES = new Set(["fixed", "estimated", "variable", "unknown"]);
 
 mkdirSync(FILES_DIR, { recursive: true });
 
@@ -218,7 +219,10 @@ function normalizeBillPayload(payload, existing = null) {
   const notes = payload.notes !== undefined ? String(payload.notes || "").trim() : existing?.notes;
   const status = payload.status !== undefined ? String(payload.status || "") : existing?.status || "open";
   const autopayEnabled = payload.autopay_enabled !== undefined ? !!payload.autopay_enabled : !!existing?.autopay_enabled;
-  const amountRaw = payload.amount !== undefined ? Number(payload.amount) : Number(existing?.amount);
+  const amountType =
+    payload.amount_type !== undefined ? String(payload.amount_type || "").trim() : existing?.amount_type || "fixed";
+  const hasAmountPayload = payload.amount !== undefined && payload.amount !== null && String(payload.amount).trim() !== "";
+  const amountRaw = hasAmountPayload ? Number(payload.amount) : existing && payload.amount === undefined ? existing.amount : null;
   const currency = payload.currency !== undefined ? String(payload.currency || "").trim().toUpperCase() : existing?.currency || "USD";
   const schedule = normalizeSchedule({
     dueDate: payload.due_date !== undefined ? payload.due_date : existing?.due_date,
@@ -232,7 +236,11 @@ function normalizeBillPayload(payload, existing = null) {
 
   if (!title) return { error: "title is required" };
   if (!category) return { error: "category is required" };
-  if (!Number.isFinite(amountRaw) || amountRaw < 0) return { error: "amount must be a non-negative number" };
+  if (!BILL_AMOUNT_TYPES.has(amountType)) return { error: "invalid amount type" };
+  if (amountRaw !== null && (!Number.isFinite(Number(amountRaw)) || Number(amountRaw) < 0)) {
+    return { error: "amount must be a non-negative number" };
+  }
+  if (amountType === "fixed" && amountRaw === null) return { error: "fixed amount is required" };
   if (!["open", "paid", "skipped"].includes(status)) return { error: "invalid status" };
   if (!currency) return { error: "currency is required" };
 
@@ -244,7 +252,8 @@ function normalizeBillPayload(payload, existing = null) {
     notes: notes || null,
     status,
     autopay_enabled: autopayEnabled,
-    amount: Number(amountRaw.toFixed(2)),
+    amount: amountRaw === null ? null : Number(Number(amountRaw).toFixed(2)),
+    amount_type: amountType,
     currency,
     due_date: schedule.dueDate,
     recurrence_unit: schedule.recurrenceUnit,
@@ -338,6 +347,7 @@ function serializeBill(row) {
     source: row.payment_source,
     responsibility_label: row.responsibility_label,
     amount: row.amount,
+    amount_type: row.amount_type || "fixed",
     currency: row.currency,
     due_date: row.due_date,
     status: row.status,
@@ -465,7 +475,7 @@ function applyBillUpdate(id, payload) {
 
   db.prepare(
     `UPDATE bills
-     SET title = ?, category = ?, amount = ?, currency = ?, due_date = ?, cadence = ?, payment_source = ?, responsibility_label = ?,
+     SET title = ?, category = ?, amount = ?, amount_type = ?, currency = ?, due_date = ?, cadence = ?, payment_source = ?, responsibility_label = ?,
          autopay = ?, status = ?, notes = ?, recurrence_unit = ?, recurrence_interval = ?, recurrence_day_of_month = ?,
          recurrence_end_date = ?, last_paid_due_date = ?, is_subscription = ?, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,
@@ -473,6 +483,7 @@ function applyBillUpdate(id, payload) {
     normalized.title,
     normalized.category,
     normalized.amount,
+    normalized.amount_type,
     normalized.currency,
     nextDueDate,
     normalized.cadence,
@@ -530,6 +541,7 @@ function migrateBillsStatusCheck() {
       title TEXT NOT NULL,
       category TEXT NOT NULL,
       amount REAL NOT NULL CHECK (amount >= 0),
+      amount_type TEXT NOT NULL DEFAULT 'fixed' CHECK (amount_type IN ('fixed', 'estimated', 'variable', 'unknown')),
       currency TEXT NOT NULL DEFAULT 'USD',
       due_date TEXT NOT NULL,
       cadence TEXT NOT NULL,
@@ -551,12 +563,65 @@ function migrateBillsStatusCheck() {
     );
 
     INSERT INTO bills_next (
-      id, title, category, amount, currency, due_date, cadence, payment_source, responsibility_label,
+      id, title, category, amount, amount_type, currency, due_date, cadence, payment_source, responsibility_label,
       autopay, status, last_paid_due_date, notes, recurrence_unit, recurrence_interval, recurrence_day_of_month,
       recurrence_end_date, is_subscription, payer_name, confirmer_name, created_at, updated_at
     )
     SELECT
-      id, title, category, amount, COALESCE(NULLIF(currency, ''), 'USD'), due_date, cadence, payment_source, responsibility_label,
+      id, title, category, amount, COALESCE(NULLIF(amount_type, ''), 'fixed'), COALESCE(NULLIF(currency, ''), 'USD'), due_date, cadence, payment_source, responsibility_label,
+      autopay, status, last_paid_due_date, notes, recurrence_unit, recurrence_interval, recurrence_day_of_month,
+      recurrence_end_date, is_subscription, payer_name, confirmer_name, created_at, updated_at
+    FROM bills;
+
+    DROP TABLE bills;
+    ALTER TABLE bills_next RENAME TO bills;
+    CREATE INDEX IF NOT EXISTS idx_bills_status_due ON bills(status, due_date);
+
+    PRAGMA foreign_keys = ON;
+  `);
+}
+
+function migrateBillsFlexibleAmounts() {
+  const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'bills'").get();
+  if (!table?.sql) return;
+  if (table.sql.includes("amount_type") && !table.sql.includes("amount REAL NOT NULL")) return;
+
+  db.exec(`
+    PRAGMA foreign_keys = OFF;
+
+    CREATE TABLE bills_next (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL,
+      amount REAL CHECK (amount IS NULL OR amount >= 0),
+      amount_type TEXT NOT NULL DEFAULT 'fixed' CHECK (amount_type IN ('fixed', 'estimated', 'variable', 'unknown')),
+      currency TEXT NOT NULL DEFAULT 'USD',
+      due_date TEXT NOT NULL,
+      cadence TEXT NOT NULL,
+      payment_source TEXT,
+      responsibility_label TEXT,
+      autopay INTEGER NOT NULL DEFAULT 0 CHECK (autopay IN (0, 1)),
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'paid', 'skipped')),
+      last_paid_due_date TEXT,
+      notes TEXT,
+      recurrence_unit TEXT NOT NULL DEFAULT 'month',
+      recurrence_interval INTEGER NOT NULL DEFAULT 1,
+      recurrence_day_of_month INTEGER,
+      recurrence_end_date TEXT,
+      is_subscription INTEGER NOT NULL DEFAULT 0 CHECK (is_subscription IN (0, 1)),
+      payer_name TEXT,
+      confirmer_name TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    INSERT INTO bills_next (
+      id, title, category, amount, amount_type, currency, due_date, cadence, payment_source, responsibility_label,
+      autopay, status, last_paid_due_date, notes, recurrence_unit, recurrence_interval, recurrence_day_of_month,
+      recurrence_end_date, is_subscription, payer_name, confirmer_name, created_at, updated_at
+    )
+    SELECT
+      id, title, category, amount, COALESCE(NULLIF(amount_type, ''), 'fixed'), COALESCE(NULLIF(currency, ''), 'USD'), due_date, cadence, payment_source, responsibility_label,
       autopay, status, last_paid_due_date, notes, recurrence_unit, recurrence_interval, recurrence_day_of_month,
       recurrence_end_date, is_subscription, payer_name, confirmer_name, created_at, updated_at
     FROM bills;
@@ -575,7 +640,8 @@ function createSchema() {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       category TEXT NOT NULL,
-      amount REAL NOT NULL CHECK (amount >= 0),
+      amount REAL CHECK (amount IS NULL OR amount >= 0),
+      amount_type TEXT NOT NULL DEFAULT 'fixed' CHECK (amount_type IN ('fixed', 'estimated', 'variable', 'unknown')),
       currency TEXT NOT NULL DEFAULT 'USD',
       due_date TEXT NOT NULL,
       cadence TEXT NOT NULL,
@@ -590,6 +656,8 @@ function createSchema() {
       recurrence_day_of_month INTEGER,
       recurrence_end_date TEXT,
       is_subscription INTEGER NOT NULL DEFAULT 0 CHECK (is_subscription IN (0, 1)),
+      payer_name TEXT,
+      confirmer_name TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -665,7 +733,9 @@ function createSchema() {
   ensureColumn("bills", "is_subscription", "is_subscription INTEGER NOT NULL DEFAULT 0 CHECK (is_subscription IN (0, 1))");
   ensureColumn("bills", "payer_name", "payer_name TEXT");
   ensureColumn("bills", "confirmer_name", "confirmer_name TEXT");
+  ensureColumn("bills", "amount_type", "amount_type TEXT NOT NULL DEFAULT 'fixed' CHECK (amount_type IN ('fixed', 'estimated', 'variable', 'unknown'))");
   migrateBillsStatusCheck();
+  migrateBillsFlexibleAmounts();
   ensureColumn("documents", "is_pinned", "is_pinned INTEGER NOT NULL DEFAULT 0 CHECK (is_pinned IN (0, 1))");
   ensureColumn("documents", "expiry_date", "expiry_date TEXT");
   ensureColumn("documents", "updated_at", "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP");
@@ -690,9 +760,9 @@ function seedData() {
   if (billCount === 0) {
     const insert = db.prepare(`
       INSERT INTO bills (
-        id, title, category, amount, currency, due_date, cadence, payment_source, responsibility_label,
+        id, title, category, amount, amount_type, currency, due_date, cadence, payment_source, responsibility_label,
         autopay, status, notes, recurrence_unit, recurrence_interval, recurrence_day_of_month, recurrence_end_date, is_subscription
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const today = todayISO();
     const month = String(parseISODate(today).getUTCMonth() + 1).padStart(2, "0");
@@ -709,6 +779,7 @@ function seedData() {
         title,
         category,
         amount,
+        "fixed",
         "USD",
         dueDate,
         recurrenceLabel("month", 1, Number(String(dueDate).slice(8, 10))),
@@ -1151,14 +1222,15 @@ app.post("/api/bills", (req, res) => {
   const id = randomUUID();
   db.prepare(
     `INSERT INTO bills (
-      id, title, category, amount, currency, due_date, cadence, payment_source, responsibility_label,
+      id, title, category, amount, amount_type, currency, due_date, cadence, payment_source, responsibility_label,
       autopay, status, notes, recurrence_unit, recurrence_interval, recurrence_day_of_month, recurrence_end_date, last_paid_due_date, is_subscription
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     normalized.title,
     normalized.category,
     normalized.amount,
+    normalized.amount_type,
     normalized.currency,
     normalized.due_date,
     normalized.cadence,

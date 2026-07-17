@@ -32,6 +32,7 @@ const billId = document.getElementById("billId");
 const billTitle = document.getElementById("billTitle");
 const billCategory = document.getElementById("billCategory");
 const billAmount = document.getElementById("billAmount");
+const billAmountType = document.getElementById("billAmountType");
 const billCurrency = document.getElementById("billCurrency");
 const billDueDate = document.getElementById("billDueDate");
 const billSource = document.getElementById("billSource");
@@ -177,6 +178,15 @@ function formatUtilityDateParts() {
 
 function formatMoney(amount, currency = "USD") {
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(amount || 0));
+}
+
+function formatBillAmount(bill) {
+  const amountType = bill.amount_type || "fixed";
+  const hasAmount = bill.amount !== null && bill.amount !== undefined && bill.amount !== "";
+  if (amountType === "unknown") return "TBD";
+  if (amountType === "variable") return hasAmount ? `varies (${formatMoney(bill.amount, bill.currency)})` : "varies";
+  if (amountType === "estimated") return hasAmount ? `~${formatMoney(bill.amount, bill.currency)}` : "estimate TBD";
+  return hasAmount ? formatMoney(bill.amount, bill.currency) : "TBD";
 }
 
 function formatDate(iso) {
@@ -391,7 +401,7 @@ function renderTodayBills(items) {
       </div>
       <div class="cardValueBlock">
         <span>${formatDate(bill.due_date)}</span>
-        <strong>${formatMoney(bill.amount, bill.currency)}</strong>
+        <strong>${escapeHtml(formatBillAmount(bill))}</strong>
       </div>
     </article>
   `);
@@ -468,7 +478,7 @@ function buildDashboardAgenda(data) {
     kind: "Bill",
     title: bill.title,
     date: bill.due_date,
-    value: formatMoney(bill.amount, bill.currency),
+    value: formatBillAmount(bill),
     detail: dueBadgeText(bill.due_date),
   }));
 
@@ -558,7 +568,7 @@ function renderMoneyDueSoon(bills) {
         <span class="metaText">${escapeHtml(bill.source || "No source")} • ${escapeHtml(bill.responsibility_label || "Household")} • ${dueBadgeText(bill.due_date)}</span>
       </div>
       <div class="moduleValue">
-        <strong>${formatMoney(bill.amount, bill.currency)}</strong>
+        <strong>${escapeHtml(formatBillAmount(bill))}</strong>
         <span>${formatShortDate(bill.due_date)}</span>
       </div>
     </article>
@@ -585,7 +595,7 @@ function renderMoneyRows(bills) {
         <td><span class="tablePill">${escapeHtml(bill.category)}</span></td>
         <td>${escapeHtml(bill.source || "—")}</td>
         <td>${escapeHtml(bill.responsibility_label || "—")}</td>
-        <td>${formatMoney(bill.amount, bill.currency)}</td>
+        <td>${escapeHtml(formatBillAmount(bill))}</td>
         <td>${escapeHtml(recurrenceLabel(bill))}${bill.autopay_enabled ? " • autopay" : ""}</td>
         <td><span class="tablePill ${bill.status === "paid" ? "tablePillOk" : ""}">${escapeHtml(bill.status)}</span></td>
         <td>
@@ -629,6 +639,7 @@ function openBillModal(bill = null) {
     billTitle.value = bill.title || "";
     billCategory.value = bill.category || "other";
     billAmount.value = bill.amount ?? "";
+    billAmountType.value = bill.amount_type || "fixed";
     billCurrency.value = bill.currency || "USD";
     billDueDate.value = bill.due_date || todayISO();
     billSource.value = bill.source || "";
@@ -659,6 +670,7 @@ function resetBillForm() {
   billForm.reset();
   billId.value = "";
   billCurrency.value = "USD";
+  billAmountType.value = "fixed";
   billDueDate.value = todayISO();
   billRecurrenceUnit.value = "month";
   billRecurrenceInterval.value = 1;
@@ -666,10 +678,13 @@ function resetBillForm() {
 }
 
 function billPayloadFromForm() {
+  const hasAmount = billAmount.value.trim() !== "";
+  const amountType = !hasAmount && billAmountType.value === "fixed" ? "unknown" : billAmountType.value;
   return {
     title: billTitle.value.trim(),
     category: billCategory.value,
-    amount: Number(billAmount.value),
+    amount: hasAmount ? Number(billAmount.value) : null,
+    amount_type: amountType,
     currency: billCurrency.value.trim().toUpperCase() || "USD",
     due_date: billDueDate.value,
     source: billSource.value.trim(),

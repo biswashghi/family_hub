@@ -156,6 +156,21 @@ test("backend workflow actions support richer frontend use cases", async () => {
     assert.equal(skipped.body.bill.status, "open");
     assert.equal(skipped.body.bill.due_date, addDaysISO(dueDate, 28));
 
+    const unknownAmountBill = await api(context.baseUrl, cookie, "/api/bills", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Variable utility bill",
+        category: "utility",
+        amount: null,
+        amount_type: "unknown",
+        currency: "USD",
+        due_date: dueDate,
+      }),
+    });
+    assert.equal(unknownAmountBill.response.status, 201);
+    assert.equal(unknownAmountBill.body.bill.amount, null);
+    assert.equal(unknownAmountBill.body.bill.amount_type, "unknown");
+
     const createdTask = await api(context.baseUrl, cookie, "/api/tasks", {
       method: "POST",
       body: JSON.stringify({

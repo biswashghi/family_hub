@@ -440,7 +440,15 @@
               <option value="other">other</option>
             </select>
           </label>
-          <label>Amount<input id="billAmount" type="number" min="0" step="0.01" required /></label>
+          <label>Amount<input id="billAmount" type="number" min="0" step="0.01" placeholder="Optional" /></label>
+          <label>Amount type
+            <select id="billAmountType">
+              <option value="fixed">fixed</option>
+              <option value="estimated">estimated</option>
+              <option value="variable">variable</option>
+              <option value="unknown">unknown</option>
+            </select>
+          </label>
           <label>Due date<input id="billDueDate" type="date" required /></label>
           <label>Source<input id="billSource" placeholder="Shared Checking" /></label>
           <label>Responsibility<input id="billResponsibility" placeholder="Biswash" /></label>
@@ -463,8 +471,10 @@
           <label>Recurrence interval<input id="billRecurrenceInterval" type="number" min="1" step="1" value="1" /></label>
           <label>Day of month<input id="billRecurrenceDayOfMonth" type="number" min="1" max="31" /></label>
           <label>Recurrence end date<input id="billRecurrenceEndDate" type="date" /></label>
-          <label class="checkboxRow"><input id="billAutopayEnabled" type="checkbox" />Autopay enabled</label>
-          <label class="full checkboxRow"><input id="billIsSubscription" type="checkbox" />Subscription</label>
+          <div class="full checkboxGroup">
+            <label class="checkboxRow"><input id="billAutopayEnabled" type="checkbox" />Autopay enabled</label>
+            <label class="checkboxRow"><input id="billIsSubscription" type="checkbox" />Subscription</label>
+          </div>
           <label class="full">Notes<textarea id="billNotes" rows="3" placeholder="Notes"></textarea></label>
           <div class="actions full">
             <button type="button" id="billDeleteBtn" class="ghostBtn hidden">Delete</button>
