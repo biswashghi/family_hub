@@ -1,6 +1,4 @@
 const logoutBtn = document.getElementById("logoutBtn");
-const addTaskBtn = document.getElementById("addTaskBtn");
-const addNoteBtn = document.getElementById("addNoteBtn");
 const pageTitle = document.getElementById("pageTitle");
 const currentDate = document.getElementById("currentDate");
 const weatherTempLabel = document.getElementById("weatherTempLabel");
@@ -1335,8 +1333,6 @@ logoutBtn.addEventListener("click", async () => {
   }
 });
 
-addTaskBtn.addEventListener("click", promptCreateTask);
-addNoteBtn.addEventListener("click", promptCreateNote);
 openBillModalBtn.addEventListener("click", () => openBillModal());
 billModalCloseBtn.addEventListener("click", closeBillModal);
 billResetBtn.addEventListener("click", resetBillForm);
