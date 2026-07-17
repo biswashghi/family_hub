@@ -1,0 +1,94 @@
+name: Deploy Family Hub
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: family-hub-deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend tests
+        run: npm run test:e2e
+
+      - name: Check server syntax
+        run: node --check server.js
+
+      - name: Check frontend syntax
+        run: node --check public/app.js
+
+      - name: Check config syntax
+        run: node --check src/config.js
+
+      - name: Check deploy script syntax
+        run: bash -n scripts/deploy-hetzner.sh
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+        run: |
+          test -n "$HETZNER_HOST"
+          test -n "$HETZNER_SSH_KEY"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$HETZNER_SSH_KEY" > ~/.ssh/hetzner
+          chmod 600 ~/.ssh/hetzner
+          ssh-keyscan -H "$HETZNER_HOST" >> ~/.ssh/known_hosts
+          {
+            echo "Host $HETZNER_HOST"
+            echo "  IdentityFile ~/.ssh/hetzner"
+            echo "  IdentitiesOnly yes"
+          } >> ~/.ssh/config
+
+      - name: Deploy to Hetzner
+        env:
+          APP_HOST_PORT: ${{ vars.APP_HOST_PORT || '8787' }}
+          FAMILY_HUB_LOCATION_LABEL: ${{ vars.FAMILY_HUB_LOCATION_LABEL || 'Detroit, MI' }}
+          FAMILY_HUB_TIME_ZONE: ${{ vars.FAMILY_HUB_TIME_ZONE || 'America/Detroit' }}
+          FAMILY_HUB_WEATHER_LATITUDE: ${{ vars.FAMILY_HUB_WEATHER_LATITUDE || '42.3314' }}
+          FAMILY_HUB_WEATHER_LONGITUDE: ${{ vars.FAMILY_HUB_WEATHER_LONGITUDE || '-83.0458' }}
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+          HETZNER_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          test -n "$HETZNER_USER"
+          ./scripts/deploy-hetzner.sh \
+            "$HETZNER_USER" \
+            "$HETZNER_HOST" \
+            "https://github.com/biswashghi/family_hub.git" \
+            main
+
+      - name: Verify deployment
+        run: |
+          curl --fail --silent --show-error https://family.bghimire.com/api/health
