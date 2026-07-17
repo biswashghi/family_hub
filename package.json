@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
+    "backup:data": "node scripts/backup-data.mjs",
     "test:e2e": "node --test tests/e2e/*.test.js",
     "docker:build": "docker build -t family-hub:local .",
     "docker:up": "docker compose up -d --build",
@@ -13,10 +14,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
+    "cytoscape": "^3.33.3",
     "express": "^4.21.2",
     "multer": "^1.4.5-lts.2"
-  },
-  "devDependencies": {
-    "puppeteer": "^24.40.0"
   }
 }

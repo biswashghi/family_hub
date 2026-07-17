@@ -8,9 +8,11 @@ services:
     ports:
       - "8788:8788"
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
+      HOST: 0.0.0.0
       PORT: "8788"
       DATA_DIR: /app/data
+      FAMILY_HUB_ALLOW_DEFAULT_CREDENTIALS: "1"
     volumes:
       - family-hub-data:/app/data
     restart: unless-stopped
