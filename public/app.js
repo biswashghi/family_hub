@@ -359,7 +359,8 @@ async function loadEnvironment() {
 async function loadSession() {
   try {
     const session = await requestJSON("/api/session");
-    sessionPill.textContent = `Signed in as ${session.username}`;
+    document.body.classList.toggle("demoMode", !!session.demo);
+    sessionPill.textContent = session.demo ? "Viewing read-only demo" : `Signed in as ${session.username}`;
   } catch {
     window.location.href = "/login";
   }

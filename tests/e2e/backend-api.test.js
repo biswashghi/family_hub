@@ -124,6 +124,14 @@ async function login(baseUrl) {
   return cookie.split(";")[0];
 }
 
+async function demoLogin(baseUrl) {
+  const response = await fetch(`${baseUrl}/auth/demo`, { method: "POST" });
+  assert.equal(response.status, 200);
+  const cookie = response.headers.get("set-cookie");
+  assert.ok(cookie);
+  return cookie.split(";")[0];
+}
+
 async function api(baseUrl, cookie, pathName, options = {}) {
   const response = await fetch(`${baseUrl}${pathName}`, {
     ...options,
@@ -229,6 +237,42 @@ test("backend workflow actions support richer frontend use cases", async () => {
 
     const homeOverview = await api(context.baseUrl, cookie, "/api/home/overview");
     assert.equal(typeof homeOverview.body.metrics.openTasksCount, "number");
+  } finally {
+    await stopServer(context);
+  }
+});
+
+test("demo login is read-only and uses sample data", async () => {
+  const context = await startServer();
+  try {
+    const cookie = await demoLogin(context.baseUrl);
+
+    const session = await api(context.baseUrl, cookie, "/api/session");
+    assert.equal(session.response.status, 200);
+    assert.equal(session.body.demo, true);
+
+    const dashboard = await api(context.baseUrl, cookie, "/api/dashboard");
+    assert.equal(dashboard.response.status, 200);
+    assert.ok(dashboard.body.upcomingBills.length > 0);
+    assert.ok(dashboard.body.tasksToday.length > 0);
+
+    const createBill = await api(context.baseUrl, cookie, "/api/bills", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Should not save",
+        category: "utility",
+        amount: 1,
+        currency: "USD",
+        due_date: "2026-07-14",
+      }),
+    });
+    assert.equal(createBill.response.status, 403);
+    assert.match(createBill.body.error, /read-only/i);
+
+    const realCookie = await login(context.baseUrl);
+    const realBills = await api(context.baseUrl, realCookie, "/api/bills");
+    assert.equal(realBills.response.status, 200);
+    assert.equal(realBills.body.bills.length, 0);
   } finally {
     await stopServer(context);
   }

@@ -90,6 +90,11 @@
         font-weight: 800;
         padding: 0.72rem 0.95rem;
       }
+      .demoButton {
+        background: rgba(255, 255, 255, 0.62);
+        color: var(--forest);
+        border-color: var(--line);
+      }
       .error {
         min-height: 1.2rem;
         color: #9e3522;
@@ -108,6 +113,7 @@
         <label>Password <input id="password" name="password" type="password" required autocomplete="current-password" /></label>
         <div id="loginError" class="error"></div>
         <button id="submitBtn" type="submit">Enter Family Hub</button>
+        <button id="demoBtn" class="demoButton" type="button">View read-only demo</button>
       </form>
     </main>
 
@@ -118,6 +124,7 @@
       const passwordInput = document.getElementById("password");
       const subtitle = document.getElementById("loginSubtitle");
       const submitBtn = document.getElementById("submitBtn");
+      const demoBtn = document.getElementById("demoBtn");
       let setupRequired = false;
 
       async function loadAuthStatus() {
@@ -164,7 +171,25 @@
         }
       });
 
+      async function startDemo() {
+        errorBox.textContent = "";
+        try {
+          const response = await fetch("/auth/demo", { method: "POST" });
+          if (!response.ok) {
+            errorBox.textContent = "Demo is not available right now.";
+            return;
+          }
+          window.location.href = "/";
+        } catch {
+          errorBox.textContent = "Demo failed to load. Please try again.";
+        }
+      }
+
+      demoBtn.addEventListener("click", startDemo);
       loadAuthStatus();
+      if (new URLSearchParams(window.location.search).get("demo") === "1") {
+        startDemo();
+      }
     </script>
   </body>
 </html>

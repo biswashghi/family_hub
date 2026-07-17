@@ -83,6 +83,18 @@ p {
   display: none !important;
 }
 
+body.demoMode [data-open-bill-modal],
+body.demoMode [data-open-task-prompt],
+body.demoMode [data-open-note-prompt],
+body.demoMode .addPanel,
+body.demoMode .addDisclosure,
+body.demoMode .tableActions,
+body.demoMode .entityActions,
+body.demoMode .taskRow input,
+body.demoMode .taskRow .miniAction {
+  display: none !important;
+}
+
 .appShell {
   min-height: 100vh;
   display: grid;

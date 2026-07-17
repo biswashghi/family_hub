@@ -39,6 +39,22 @@ Open:
 
 App access is protected by username/password. On a fresh database, the login page asks you to create the first household sign-in. After setup, that account is stored in SQLite using a salted password hash.
 
+## Public Demo
+
+The login page includes a read-only demo mode for linking from a portfolio or personal site:
+
+```text
+https://family.bghimire.com/login?demo=1
+```
+
+Demo mode:
+
+- uses synthetic sample bills, tasks, documents, items, and notes
+- never reads real household data
+- blocks all non-GET `/api/*` requests with `403`
+- hides add/edit/delete/upload controls in the UI
+- keeps real production data untouched
+
 ## Docker
 
 ```bash
