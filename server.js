@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +17,6 @@ const HOST = config.host;
 const DATA_DIR = config.dataDir;
 const DB_PATH = config.dbPath;
 const FILES_DIR = config.filesDir;
-const AUTH_USERNAME = config.authUsername;
-const AUTH_PASSWORD = config.authPassword;
 const SESSION_COOKIE = config.sessionCookie;
 const APP_TIME_ZONE = config.timeZone;
 const LOCATION_LABEL = config.locationLabel;
@@ -27,6 +25,24 @@ const WEATHER_LONGITUDE = config.weatherLongitude;
 const SEED_DEMO_DATA = config.seedDemoData;
 const sessions = new Map();
 const BILL_AMOUNT_TYPES = new Set(["fixed", "estimated", "variable", "unknown"]);
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `scrypt:${salt}:${hash}`;
+}
+
+function verifyPassword(password, passwordHash) {
+  const [scheme, salt, storedHash] = String(passwordHash || "").split(":");
+  if (scheme !== "scrypt" || !salt || !storedHash) return false;
+  const candidate = Buffer.from(scryptSync(password, salt, 64).toString("hex"), "hex");
+  const stored = Buffer.from(storedHash, "hex");
+  return candidate.length === stored.length && timingSafeEqual(candidate, stored);
+}
+
+function getAuthUser() {
+  return db.prepare("SELECT * FROM auth_users ORDER BY created_at ASC LIMIT 1").get() || null;
+}
 
 mkdirSync(FILES_DIR, { recursive: true });
 
@@ -636,6 +652,14 @@ function migrateBillsFlexibleAmounts() {
 
 function createSchema() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS auth_users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS bills (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -862,13 +886,37 @@ app.get("/api/health", (_req, res) => {
 app.post("/auth/login", (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "");
-  if (username !== AUTH_USERNAME || password !== AUTH_PASSWORD) {
+  const authUser = getAuthUser();
+  if (!authUser) {
+    return res.status(409).json({ error: "setup required", setup_required: true });
+  }
+  if (username !== authUser.username || !verifyPassword(password, authUser.password_hash)) {
     return res.status(401).json({ error: "invalid credentials" });
   }
 
   const token = createSession(username);
   setSessionCookie(res, token);
   return res.json({ ok: true, username });
+});
+
+app.get("/auth/status", (_req, res) => {
+  res.json({ setup_required: !getAuthUser() });
+});
+
+app.post("/auth/setup", (req, res) => {
+  if (getAuthUser()) {
+    return res.status(409).json({ error: "setup already complete" });
+  }
+
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "");
+  if (username.length < 3) return res.status(400).json({ error: "username must be at least 3 characters" });
+  if (password.length < 12) return res.status(400).json({ error: "password must be at least 12 characters" });
+
+  db.prepare("INSERT INTO auth_users (id, username, password_hash) VALUES (?, ?, ?)").run(randomUUID(), username, hashPassword(password));
+  const token = createSession(username);
+  setSessionCookie(res, token);
+  return res.status(201).json({ ok: true, username });
 });
 
 app.post("/auth/logout", (req, res) => {

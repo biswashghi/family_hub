@@ -67,8 +67,6 @@ async function startServer() {
       PORT: String(port),
       DATA_DIR: tempRoot,
       DB_PATH: path.join(tempRoot, "family_hub_test.sqlite"),
-      FAMILY_HUB_USERNAME: "family_admin",
-      FAMILY_HUB_PASSWORD: "FamilyHub!2026",
       FAMILY_HUB_TIME_ZONE: "America/Detroit",
     },
     stdio: "pipe",
@@ -100,6 +98,21 @@ async function stopServer(context) {
 }
 
 async function login(baseUrl) {
+  const setupStatus = await fetch(`${baseUrl}/auth/status`);
+  assert.equal(setupStatus.status, 200);
+  const status = await setupStatus.json();
+  if (status.setup_required) {
+    const setupResponse = await fetch(`${baseUrl}/auth/setup`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "family_admin", password: "FamilyHub!2026" }),
+    });
+    assert.equal(setupResponse.status, 201);
+    const setupCookie = setupResponse.headers.get("set-cookie");
+    assert.ok(setupCookie);
+    return setupCookie.split(";")[0];
+  }
+
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -221,32 +234,14 @@ test("backend workflow actions support richer frontend use cases", async () => {
   }
 });
 
-test("production config rejects default credentials", () => {
-  assert.throws(
-    () =>
-      withEnv(
-        {
-          NODE_ENV: "production",
-          FAMILY_HUB_USERNAME: undefined,
-          FAMILY_HUB_PASSWORD: undefined,
-          FAMILY_HUB_ALLOW_DEFAULT_CREDENTIALS: undefined,
-        },
-        () => loadConfig(process.cwd()),
-      ),
-    /default Family Hub credentials/,
-  );
-
+test("production config no longer requires env credentials", () => {
   const config = withEnv(
     {
       NODE_ENV: "production",
-      FAMILY_HUB_USERNAME: "prod_user",
-      FAMILY_HUB_PASSWORD: "not-the-default-password",
-      FAMILY_HUB_ALLOW_DEFAULT_CREDENTIALS: undefined,
     },
     () => loadConfig(process.cwd()),
   );
   assert.equal(config.nodeEnv, "production");
-  assert.equal(config.authUsername, "prod_user");
 });
 
 test("invalid document metadata cleans up uploaded file", async () => {

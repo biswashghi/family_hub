@@ -12,7 +12,6 @@ services:
       HOST: 0.0.0.0
       PORT: "8788"
       DATA_DIR: /app/data
-      FAMILY_HUB_ALLOW_DEFAULT_CREDENTIALS: "1"
     volumes:
       - family-hub-data:/app/data
     restart: unless-stopped

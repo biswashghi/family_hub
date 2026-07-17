@@ -2,16 +2,7 @@
 
 Family Hub is intended to be private and family-only. Production should run behind HTTPS with the app container bound to localhost on the VPS.
 
-## Required Secrets
-
-Set these in the shell before running `scripts/deploy-hetzner.sh`:
-
-```bash
-export FAMILY_HUB_USERNAME="your-admin-user"
-export FAMILY_HUB_PASSWORD="a-long-random-password"
-```
-
-Optional deployment environment:
+## Optional Deployment Environment
 
 ```bash
 export FAMILY_HUB_TIME_ZONE="America/Detroit"
@@ -55,7 +46,7 @@ family.example.com {
 
 ## Production Safety
 
-In `NODE_ENV=production`, the app refuses to start with the default local credentials unless `FAMILY_HUB_ALLOW_DEFAULT_CREDENTIALS=1` is explicitly set. Do not set that override on Hetzner.
+Family Hub no longer takes production login credentials from environment variables. On a fresh database, open `/login` and create the first household sign-in. The account is stored in SQLite with a salted password hash.
 
 Demo data is disabled by default. It only seeds when:
 

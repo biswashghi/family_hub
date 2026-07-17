@@ -37,17 +37,7 @@ Open:
 
 ## Login
 
-App access is protected by username/password.
-
-Defaults:
-- username: `family_admin`
-- password: `FamilyHub!2026`
-
-Override with env vars:
-- `FAMILY_HUB_USERNAME`
-- `FAMILY_HUB_PASSWORD`
-
-Production refuses to start with the default credentials. Local development still works with the defaults.
+App access is protected by username/password. On a fresh database, the login page asks you to create the first household sign-in. After setup, that account is stored in SQLite using a salted password hash.
 
 ## Docker
 
@@ -55,7 +45,6 @@ Production refuses to start with the default credentials. Local development stil
 docker build -t family-hub:local .
 docker run --rm \
   -e NODE_ENV=development \
-  -e FAMILY_HUB_ALLOW_DEFAULT_CREDENTIALS=1 \
   -p 8788:8788 \
   -v family-hub-data:/app/data \
   family-hub:local
@@ -75,10 +64,6 @@ Repo-specific production notes:
 
 Start deployment from:
 - [Hetzner deployment runbook](https://github.com/biswashghi/hetzner_tf/blob/main/README.md)
-
-Family Hub deploy uses Bitwarden credentials via the shared wrapper:
-- default item: `family-hub-prod-credentials`
-- default fields: `username`, `password`
 
 Verify endpoint during deploy:
 - `https://<family_domain>/login`

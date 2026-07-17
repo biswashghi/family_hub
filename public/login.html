@@ -102,12 +102,12 @@
     <main class="card">
       <div class="eyebrow">Private household command center</div>
       <h1>Family Hub</h1>
-      <p class="subtitle">Sign in to your household dashboard for bills, home upkeep, important documents, and quick notes.</p>
+      <p id="loginSubtitle" class="subtitle">Sign in to your household dashboard for bills, home upkeep, important documents, and quick notes.</p>
       <form id="loginForm">
         <label>Username <input id="username" name="username" required autocomplete="username" /></label>
         <label>Password <input id="password" name="password" type="password" required autocomplete="current-password" /></label>
         <div id="loginError" class="error"></div>
-        <button type="submit">Enter Family Hub</button>
+        <button id="submitBtn" type="submit">Enter Family Hub</button>
       </form>
     </main>
 
@@ -116,22 +116,45 @@
       const errorBox = document.getElementById("loginError");
       const usernameInput = document.getElementById("username");
       const passwordInput = document.getElementById("password");
+      const subtitle = document.getElementById("loginSubtitle");
+      const submitBtn = document.getElementById("submitBtn");
+      let setupRequired = false;
+
+      async function loadAuthStatus() {
+        try {
+          const response = await fetch("/auth/status");
+          const status = await response.json();
+          setupRequired = !!status.setup_required;
+          if (setupRequired) {
+            subtitle.textContent = "Create the first Family Hub sign-in for your household.";
+            submitBtn.textContent = "Create Family Login";
+            passwordInput.autocomplete = "new-password";
+          }
+        } catch {
+          errorBox.textContent = "Could not load sign-in status.";
+        }
+      }
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         errorBox.textContent = "";
         const username = usernameInput.value.trim();
         const password = passwordInput.value;
+        const path = setupRequired ? "/auth/setup" : "/auth/login";
 
         try {
-          const response = await fetch("/auth/login", {
+          const response = await fetch(path, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ username, password }),
           });
 
           if (!response.ok) {
-            errorBox.textContent = "Invalid username or password.";
+            if (setupRequired && response.status === 400) {
+              errorBox.textContent = "Use a username with 3+ characters and a password with 12+ characters.";
+            } else {
+              errorBox.textContent = setupRequired ? "Could not create login." : "Invalid username or password.";
+            }
             return;
           }
 
@@ -140,6 +163,8 @@
           errorBox.textContent = "Login failed. Please try again.";
         }
       });
+
+      loadAuthStatus();
     </script>
   </body>
 </html>
