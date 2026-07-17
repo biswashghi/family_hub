@@ -9,7 +9,7 @@ export FAMILY_HUB_TIME_ZONE="America/Detroit"
 export FAMILY_HUB_LOCATION_LABEL="Detroit, MI"
 export FAMILY_HUB_WEATHER_LATITUDE="42.3314"
 export FAMILY_HUB_WEATHER_LONGITUDE="-83.0458"
-export APP_HOST_PORT="8788"
+export APP_HOST_PORT="8787"
 ```
 
 Do not set `FAMILY_HUB_SEED_DEMO_DATA=1` in production unless you intentionally want demo data.
@@ -33,14 +33,14 @@ Expose only `80` and `443` publicly. Keep the app bound to localhost:
 
 ```yaml
 ports:
-  - "127.0.0.1:8788:8788"
+  - "127.0.0.1:8787:8788"
 ```
 
 Caddy example:
 
 ```caddyfile
 family.example.com {
-  reverse_proxy 127.0.0.1:8788
+  reverse_proxy 127.0.0.1:8787
 }
 ```
 
