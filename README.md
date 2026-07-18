@@ -23,12 +23,29 @@ The app is organized around:
 - Node.js + Express
 - SQLite (`better-sqlite3`)
 - Local file storage for uploaded files
-- Plain HTML/CSS/JS frontend served by the same backend process
+- React + Vite + TypeScript public frontend
+- Same-origin API, session, and static hosting from the Express process
 
 ## Run locally
 
+For local development, run the backend and Vite frontend in separate terminals:
+
 ```bash
 npm install
+npm run dev:server
+```
+
+```bash
+npm run dev
+```
+
+Open:
+- [http://localhost:5173](http://localhost:5173)
+
+For a production-style local run:
+
+```bash
+npm run build
 npm start
 ```
 

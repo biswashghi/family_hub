@@ -28,6 +28,18 @@ const SEED_DEMO_DATA = config.seedDemoData;
 const sessions = new Map();
 const BILL_AMOUNT_TYPES = new Set(["fixed", "estimated", "variable", "unknown"]);
 
+function reactAppIndexPath() {
+  return path.join(__dirname, "public", "app", "index.html");
+}
+
+function sendReactApp(res) {
+  const reactAppIndex = reactAppIndexPath();
+  if (existsSync(reactAppIndex)) {
+    return res.sendFile(reactAppIndex);
+  }
+  return res.status(503).send("Family Hub frontend has not been built. Run npm run build before starting the server.");
+}
+
 function getAuthUser() {
   return db.prepare("SELECT * FROM auth_users ORDER BY created_at ASC LIMIT 1").get() || null;
 }
@@ -1564,20 +1576,21 @@ app.post("/api/notes/:id/archive", (req, res) => {
 });
 
 app.get("/login", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+  sendReactApp(res);
 });
 
 app.use((req, res, next) => {
   if (req.path === "/login" || req.path.startsWith("/auth/")) return next();
+  if (req.path.startsWith("/app/")) return next();
   if (req.path.startsWith("/api/")) return next();
   if (sessionFromRequest(req)) return next();
   return res.redirect("/login");
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), { index: false }));
 
 app.get("*", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  sendReactApp(res);
 });
 
 app.use((err, _req, res, _next) => {

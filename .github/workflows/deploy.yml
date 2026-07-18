@@ -36,8 +36,11 @@ jobs:
       - name: Check server syntax
         run: node --check server.js
 
-      - name: Check frontend syntax
-        run: node --check public/app.js
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Build frontend
+        run: npm run build
 
       - name: Check config syntax
         run: node --check src/config.js

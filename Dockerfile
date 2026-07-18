@@ -3,9 +3,11 @@ FROM node:20-bookworm-slim
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+RUN npm install
 
 COPY . .
+RUN npm run build
+RUN npm prune --omit=dev
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
