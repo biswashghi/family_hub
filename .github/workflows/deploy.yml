@@ -94,4 +94,10 @@ jobs:
 
       - name: Verify deployment
         run: |
-          curl --fail --silent --show-error https://family.bghimire.com/api/health
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error https://family.bghimire.com/api/health; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
