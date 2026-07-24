@@ -17,7 +17,7 @@ Do not set `FAMILY_HUB_SEED_DEMO_DATA=1` in production unless you intentionally 
 ## Deploy
 
 ```bash
-scripts/deploy-hetzner.sh <deploy-user> <server-ip> <repo-url> [branch]
+scripts/deploy-vps.sh <deploy-user> <server-ip> <repo-url> [branch]
 ```
 
 The script:
@@ -26,6 +26,8 @@ The script:
 - writes `/etc/family-hub/app.env`
 - copies that env to `/opt/family-hub/.env.prod`
 - runs `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build`
+
+Use `scripts/deploy-vps.sh` for direct app deploys.
 
 ## Reverse Proxy
 

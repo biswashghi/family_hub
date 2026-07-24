@@ -90,13 +90,13 @@ docker compose up -d --build
 docker compose down
 ```
 
-## Hetzner Production Deployment
+## VPS Production Deployment
 
 Repo-specific production notes:
 - [Hetzner production runbook](./docs/hetzner-production.md)
 
 Start deployment from:
-- [Hetzner deployment runbook](https://github.com/biswashghi/hetzner_tf/blob/main/README.md)
+- [VPS deployment runbook](https://github.com/biswashghi/hetzner_tf/blob/main/README.md)
 
 Verify endpoint during deploy:
 - `https://<family_domain>/login`
@@ -115,17 +115,12 @@ repo: https://github.com/biswashghi/family_hub.git
 branch: main
 ```
 
-Deploy from the shared Hetzner repo:
+Deploy from the shared infra repo:
 
 ```bash
 cd /Users/biswash/Documents/repos/hetzner_tf
 
-./scripts/deploy-hetzner-prod-from-tf.sh \
-  /Users/biswash/Documents/repos/family_hub \
-  deploy \
-  178.156.141.165 \
-  https://github.com/biswashghi/family_hub.git \
-  main
+./scripts/deploy-vps-prod-from-tf.sh family_hub main
 ```
 
 That wrapper refreshes the shared Caddy config, SSHes into the VPS, pulls `main`, writes `/opt/family-hub/.env.prod`, and runs:
