@@ -1,9 +1,10 @@
-import { ClipboardList, FileText, Plus, ReceiptText, Sparkles, Upload } from "lucide-react";
+import { CalendarDays, ClipboardList, FileText, Plus, ReceiptText, Sparkles, Upload } from "lucide-react";
 import { useState } from "react";
 import type { Dashboard } from "../api";
 import type { AppData, ModalState, QueueItem, ViewName } from "../types";
 import { BillRow, CardStack, DocumentRow, QueueRow, TaskRow } from "../components/records";
-import { ActionButton, MetricChip, Panel } from "../components/ui";
+import { DeadlineCalendar } from "../components/DeadlineCalendar";
+import { ActionButton, Panel } from "../components/ui";
 
 export function TodayView({
   data,
@@ -36,13 +37,8 @@ export function TodayView({
         </div>
       </Panel>
 
-      <Panel className="pulsePanel" icon={Sparkles} title="Pulse">
-        <div className="chipGrid">
-          <MetricChip label="Open bills" value={metrics?.openBillsCount ?? 0} onClick={() => setView("money")} />
-          <MetricChip label="Open tasks" value={metrics?.openTasksCount ?? 0} onClick={() => setView("home")} />
-          <MetricChip label="Docs" value={metrics?.storedDocsCount ?? 0} onClick={() => setView("docs")} />
-          <MetricChip label="Notes" value={metrics?.activeNotesCount ?? 0} onClick={() => setView("notes")} />
-        </div>
+      <Panel className="calendarPanel" icon={CalendarDays} title="Calendar">
+        <DeadlineCalendar agenda={data.agenda} metrics={metrics} setView={setView} onOpenModal={onOpenModal} />
       </Panel>
 
       <Panel icon={ReceiptText} title="Money" actions={<ActionButton icon={Plus} label="Add bill" onClick={() => onOpenModal({ kind: "bill", mode: "create" })} disabled={demo} />}>
