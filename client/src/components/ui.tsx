@@ -23,6 +23,7 @@ export function AppShell({
 }) {
   return (
     <div className="appFrame">
+      <a className="skipLink" href="#main-content">Skip to main content</a>
       <aside className="commandRail" aria-label="Primary navigation">
         <motion.div className="railMark" initial={{ scale: 0.96 }} animate={{ scale: 1 }}>
           <Home />
@@ -37,7 +38,7 @@ export function AppShell({
         </button>
       </aside>
 
-      <main className="surface">
+      <main className="surface" id="main-content" tabIndex={-1}>
         <CommandHeader view={view} session={session} environment={environment} />
         {capture}
         {children}
@@ -53,9 +54,10 @@ export function AppShell({
 }
 
 function CommandHeader({ view, session, environment }: { view: ViewName; session: Session | null; environment: Environment | null }) {
-  const now = new Date();
-  const fullDate = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(now);
-  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(now);
+  const currentDate = environment?.today ? new Date(`${environment.today}T00:00:00Z`) : new Date();
+  const dateOptions = environment?.today ? { timeZone: "UTC" } : {};
+  const fullDate = new Intl.DateTimeFormat("en-US", { ...dateOptions, weekday: "short", month: "short", day: "numeric" }).format(currentDate);
+  const weekday = new Intl.DateTimeFormat("en-US", { ...dateOptions, weekday: "long" }).format(currentDate);
 
   return (
     <motion.header className="commandHeader" layout>
@@ -84,7 +86,7 @@ function CommandHeader({ view, session, environment }: { view: ViewName; session
 
 function NavButton({ view, label, icon: Icon, active, compact, onClick }: { view: ViewName; label: string; icon: LucideIcon; active: boolean; compact?: boolean; onClick: () => void }) {
   return (
-    <button className={`navButton ${active ? "active" : ""} ${compact ? "compact" : ""}`} type="button" onClick={onClick} aria-label={label} title={label} data-view={view}>
+    <button className={`navButton ${active ? "active" : ""} ${compact ? "compact" : ""}`} type="button" onClick={onClick} aria-label={label} aria-current={active ? "page" : undefined} title={label} data-view={view}>
       {active && <motion.span className="activeGlow" layoutId={compact ? "mobileActiveGlow" : "railActiveGlow"} />}
       <Icon />
       <span>{label}</span>
@@ -124,12 +126,12 @@ export function QuickCapture({
       <div className="captureIcon">
         <Plus />
       </div>
-      <input value={value} disabled={demo} onChange={(event) => onValueChange(event.target.value)} placeholder={demo ? "Demo is read-only" : "Capture task or note"} />
-      <div className="captureToggle" aria-label="Capture type">
-        <button className={kind === "task" ? "active" : ""} type="button" onClick={() => onKindChange("task")}>
+      <input aria-label="Quick capture" value={value} disabled={demo} onChange={(event) => onValueChange(event.target.value)} placeholder={demo ? "Demo is read-only" : "Capture task or note"} />
+      <div className="captureToggle" role="group" aria-label="Capture type">
+        <button className={kind === "task" ? "active" : ""} type="button" aria-pressed={kind === "task"} onClick={() => onKindChange("task")}>
           Task
         </button>
-        <button className={kind === "note" ? "active" : ""} type="button" onClick={() => onKindChange("note")}>
+        <button className={kind === "note" ? "active" : ""} type="button" aria-pressed={kind === "note"} onClick={() => onKindChange("note")}>
           Note
         </button>
       </div>
@@ -203,7 +205,7 @@ export function Empty({ label }: { label: string }) {
 
 export function LoadingState() {
   return (
-    <div className="loadingState">
+    <div className="loadingState" role="status" aria-live="polite">
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }} />
       <span>Loading...</span>
     </div>
@@ -212,7 +214,7 @@ export function LoadingState() {
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="errorState">
+    <div className="errorState" role="alert">
       <strong>Could not load the app.</strong>
       <p>{message}</p>
       <button type="button" onClick={onRetry}>

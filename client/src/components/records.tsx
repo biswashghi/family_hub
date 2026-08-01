@@ -3,21 +3,7 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import type { Bill, DocumentRecord, Item, Note, Task } from "../api";
 import { formatBillAmount, formatShortDate } from "../api";
-import type { QueueItem } from "../types";
 import { Empty } from "./ui";
-
-export function QueueRow({ item, index }: { item: QueueItem; index: number }) {
-  return (
-    <motion.article className={`queueRow ${item.kind}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }}>
-      <span className="rowDate">{item.date}</span>
-      <div>
-        <strong>{item.title}</strong>
-        <span>{item.detail}</span>
-      </div>
-      <b>{item.value}</b>
-    </motion.article>
-  );
-}
 
 export function CardStack<T>({ items, render, empty = "Nothing here yet." }: { items: T[]; render: (item: T) => ReactNode; empty?: string }) {
   if (!items.length) return <Empty label={empty} />;

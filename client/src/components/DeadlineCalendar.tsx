@@ -1,265 +1,215 @@
-import { CalendarDays, Check, ChevronRight, FileText, ReceiptText, Repeat2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import type { Agenda, Bill, Dashboard, DocumentRecord, Item, Task } from "../api";
-import { formatBillAmount, formatShortDate } from "../api";
-import type { ModalState, ViewName } from "../types";
-import { MetricChip } from "./ui";
+import { CalendarDays, ChevronLeft, ChevronRight, FileText, ReceiptText, Repeat2, Check } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, formatBillAmount, formatShortDate, type Agenda, type CalendarEvent, type CalendarEventKind, type Bill, type DocumentRecord, type Item, type Task } from "../api";
+import "../features/calendar/calendar.css";
+import type { ModalState } from "../types";
 
-type DeadlineKind = "bill" | "task" | "item" | "document";
+const PREVIEW_LIMIT = 3;
 
-type DeadlineEvent =
-  | {
-      id: string;
-      kind: "bill";
-      date: string;
-      title: string;
-      meta: string;
-      value: string;
-      item: Bill;
-    }
-  | {
-      id: string;
-      kind: "task";
-      date: string;
-      title: string;
-      meta: string;
-      value: string;
-      item: Task;
-    }
-  | {
-      id: string;
-      kind: "item";
-      date: string;
-      title: string;
-      meta: string;
-      value: string;
-      item: Item;
-    }
-  | {
-      id: string;
-      kind: "document";
-      date: string;
-      title: string;
-      meta: string;
-      value: string;
-      item: DocumentRecord;
-    };
-
-const EVENT_ORDER: Record<DeadlineKind, number> = {
-  bill: 0,
-  task: 1,
-  item: 2,
-  document: 3,
-};
-
-const EVENT_LABEL: Record<DeadlineKind, string> = {
+const EVENT_LABEL: Record<CalendarEventKind, string> = {
   bill: "Bill",
   task: "Task",
   item: "Home",
-  document: "Doc",
+  document: "Document",
 };
 
-const EVENT_ICON = {
-  bill: ReceiptText,
-  task: Check,
-  item: Repeat2,
-  document: FileText,
-};
+const EVENT_ICON = { bill: ReceiptText, task: Check, item: Repeat2, document: FileText };
 
-export function DeadlineCalendar({
-  agenda,
-  metrics,
-  setView,
-  onOpenModal,
-}: {
-  agenda: Agenda | null;
-  metrics?: Dashboard["metrics"];
-  setView: (view: ViewName) => void;
-  onOpenModal: (modal: ModalState) => void;
-}) {
+export function DeadlineCalendar({ agenda, onOpenModal }: { agenda: Agenda | null; onOpenModal: (modal: ModalState) => void }) {
   const today = agenda?.today || toISODate(new Date());
-  const days = useMemo(() => makeDays(today, 14), [today]);
-  const events = useMemo(() => buildDeadlineEvents(agenda, days[0]?.iso, days[days.length - 1]?.iso), [agenda, days]);
-  const eventDates = useMemo(() => new Set(events.map((event) => event.date)), [events]);
-  const defaultDate = eventDates.has(today) ? today : events[0]?.date || today;
-  const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [activeAgenda, setActiveAgenda] = useState<Agenda | null>(agenda);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const cache = useRef(new Map<string, Agenda>());
+  const initializedAgenda = useRef(false);
+  const currentWeekStart = useRef(weekStart);
+  currentWeekStart.current = weekStart;
 
   useEffect(() => {
-    setSelectedDate(defaultDate);
-  }, [defaultDate]);
+    if (!agenda) return;
+    // Application refreshes are authoritative: replace cached ranges so edits and
+    // status changes show up immediately without making week navigation stale.
+    cache.current.clear();
+    cache.current.set(`${agenda.from}:${agenda.through}`, agenda);
+    if (!initializedAgenda.current) {
+      initializedAgenda.current = true;
+      const initialWeek = startOfWeek(agenda.today);
+      setWeekStart(initialWeek);
+      setSelectedDate(agenda.today);
+    }
+    setActiveAgenda((existing) => (rangeContains(agenda, currentWeekStart.current, weekEnd(currentWeekStart.current)) ? agenda : existing));
+  }, [agenda]);
 
-  const selectedEvents = events.filter((event) => event.date === selectedDate);
+  useEffect(() => {
+    const through = weekEnd(weekStart);
+    const cached = findCoveringAgenda(cache.current, weekStart, through);
+    if (cached) {
+      setActiveAgenda(cached);
+      setError("");
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    void api<Agenda>(`/api/agenda?from=${weekStart}&through=${through}`, { signal: controller.signal })
+      .then((nextAgenda) => {
+        cache.current.set(`${nextAgenda.from}:${nextAgenda.through}`, nextAgenda);
+        setActiveAgenda(nextAgenda);
+      })
+      .catch((reason) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Unable to load this week.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [weekStart]);
+
+  const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
+  const eventsByDate = useMemo(() => {
+    const grouped = new Map<string, CalendarEvent[]>();
+    for (const event of activeAgenda?.events || []) {
+      if (!grouped.has(event.display_date)) grouped.set(event.display_date, []);
+      grouped.get(event.display_date)?.push(event);
+    }
+    return grouped;
+  }, [activeAgenda]);
+  const selectedEvents = eventsByDate.get(selectedDate) || [];
+
+  function changeWeek(offset: number) {
+    const nextStart = addDays(weekStart, offset * 7);
+    setWeekStart(nextStart);
+    setSelectedDate(nextStart <= today && today <= weekEnd(nextStart) ? today : nextStart);
+  }
+
+  function goToToday() {
+    const nextStart = startOfWeek(today);
+    setWeekStart(nextStart);
+    setSelectedDate(today);
+  }
 
   return (
-    <div className="deadlineCalendar">
-      <div className="deadlineMetrics">
-        <MetricChip label="Open bills" value={metrics?.openBillsCount ?? 0} onClick={() => setView("money")} />
-        <MetricChip label="Open tasks" value={metrics?.openTasksCount ?? 0} onClick={() => setView("home")} />
-        <MetricChip label="Docs" value={metrics?.storedDocsCount ?? 0} onClick={() => setView("docs")} />
-        <MetricChip label="Notes" value={metrics?.activeNotesCount ?? 0} onClick={() => setView("notes")} />
+    <div className="weeklyCalendar">
+      <div className="weeklyCalendarHeader">
+        <div>
+          <h3>{weekTitle(weekStart)}</h3>
+        </div>
+        <div className="weekControls">
+          <button type="button" onClick={() => changeWeek(-1)} aria-label="Previous week"><ChevronLeft /></button>
+          <button type="button" className="todayControl" onClick={goToToday}>Today</button>
+          <button type="button" onClick={() => changeWeek(1)} aria-label="Next week"><ChevronRight /></button>
+        </div>
       </div>
 
-      <div className="dayStrip" aria-label="Next 14 days">
-        {days.map((day) => {
-          const dayEvents = events.filter((event) => event.date === day.iso);
+      {error ? <div className="calendarError" role="alert">{error}</div> : null}
+      <div className="weekBoard" aria-label={`Week of ${formatLongDate(weekStart)}`} aria-busy={loading}>
+        {days.map((date) => {
+          const events = eventsByDate.get(date) || [];
+          const isToday = date === today;
+          const isSelected = date === selectedDate;
           return (
-            <button key={day.iso} className={`deadlineDay ${selectedDate === day.iso ? "active" : ""}`} type="button" onClick={() => setSelectedDate(day.iso)}>
-              <span>{day.weekday}</span>
-              <strong>{day.day}</strong>
-              <EventMarks events={dayEvents} />
+            <button
+              key={date}
+              className={`weekDay ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}`}
+              type="button"
+              aria-pressed={isSelected}
+              aria-current={isToday ? "date" : undefined}
+              aria-label={`${weekday(date)}, ${formatShortDate(date)}. ${events.length} ${events.length === 1 ? "item" : "items"}`}
+              onClick={() => setSelectedDate(date)}
+            >
+              <span className="weekDayHeading"><b>{weekday(date)}</b><span>{formatShortDate(date)}</span></span>
+              {events.length ? (
+                <span className="weekPreviews">
+                  {events.slice(0, PREVIEW_LIMIT).map((event) => <EventPreview key={event.id} event={event} />)}
+                  {events.length > PREVIEW_LIMIT ? <span className="moreEvents">+{events.length - PREVIEW_LIMIT} more</span> : null}
+                </span>
+              ) : <span className="clearDay">Clear</span>}
             </button>
           );
         })}
       </div>
 
-      <div className="selectedDay">
-        <div className="selectedDate">
-          <CalendarDays />
-          <strong>{formatShortDate(selectedDate)}</strong>
+      <section className="selectedAgenda" aria-live="polite" aria-labelledby="selected-agenda-title">
+        <div className="selectedAgendaHeader">
+          <div className="selectedDate"><CalendarDays /><h4 id="selected-agenda-title">{formatLongDate(selectedDate)}</h4></div>
+          <span>{selectedEvents.length} {selectedEvents.length === 1 ? "item" : "items"}</span>
         </div>
-        <div className="deadlineList">
-          {selectedEvents.length ? (
-            selectedEvents.map((event) => <DeadlineRow key={event.id} event={event} onOpenModal={onOpenModal} />)
-          ) : (
-            <div className="emptyState">No deadlines in this range.</div>
-          )}
+        <div className="selectedAgendaList">
+          {selectedEvents.length ? selectedEvents.map((event) => <AgendaRow key={event.id} event={event} onOpenModal={onOpenModal} />) : <div className="emptyState">Nothing scheduled for this day.</div>}
         </div>
-      </div>
+      </section>
     </div>
   );
 }
 
-function DeadlineRow({ event, onOpenModal }: { event: DeadlineEvent; onOpenModal: (modal: ModalState) => void }) {
-  const Icon = EVENT_ICON[event.kind];
-
+function EventPreview({ event }: { event: CalendarEvent }) {
   return (
-    <button className={`deadlineRow ${event.kind}`} type="button" onClick={() => onOpenModal(toModal(event))}>
-      <span className={`rowGlyph ${event.kind}`}>
-        <Icon />
-      </span>
-      <div>
-        <strong>{event.title}</strong>
-        <span>{event.meta}</span>
-      </div>
-      <b>{event.value}</b>
-      <ChevronRight />
-    </button>
-  );
-}
-
-function EventMarks({ events }: { events: DeadlineEvent[] }) {
-  if (!events.length) return <span className="eventMarks empty" />;
-  const counts = events.reduce<Record<DeadlineKind, number>>(
-    (acc, event) => {
-      acc[event.kind] += 1;
-      return acc;
-    },
-    { bill: 0, task: 0, item: 0, document: 0 },
-  );
-
-  return (
-    <span className="eventMarks" aria-label={`${events.length} deadlines`}>
-      {(Object.keys(counts) as DeadlineKind[]).map((kind) => counts[kind] > 0 && <i key={kind} className={kind} title={`${counts[kind]} ${EVENT_LABEL[kind]}`} />)}
+    <span className={`calendarEventPreview ${event.kind} ${event.is_overdue ? "overdue" : ""} ${event.is_forecast ? "forecast" : ""}`}>
+      <small>{event.is_overdue ? "Overdue" : event.is_forecast ? "Forecast" : EVENT_LABEL[event.kind]}</small>
+      <b>{event.title}</b>
     </span>
   );
 }
 
-function buildDeadlineEvents(agenda: Agenda | null, start?: string, end?: string) {
-  if (!agenda || !start || !end) return [];
+function AgendaRow({ event, onOpenModal }: { event: CalendarEvent; onOpenModal: (modal: ModalState) => void }) {
+  const Icon = EVENT_ICON[event.kind];
+  const content = (
+    <>
+      <span className={`agendaGlyph ${event.kind}`}><Icon /></span>
+      <span className="agendaCopy"><b>{event.title}</b><small>{eventDetail(event)}</small></span>
+      <span className={`agendaValue ${event.kind}`}>{eventValue(event)}</span>
+      {event.is_actionable ? <ChevronRight /> : null}
+    </>
+  );
 
-  const events: DeadlineEvent[] = [
-    ...agenda.bills.map((bill): DeadlineEvent => ({
-      id: `bill-${bill.id}`,
-      kind: "bill",
-      date: bill.due_date,
-      title: bill.title,
-      meta: [bill.source, bill.responsibility_label].filter(Boolean).join(" / ") || "Household bill",
-      value: formatBillAmount(bill),
-      item: bill,
-    })),
-    ...agenda.tasks.flatMap((task): DeadlineEvent[] =>
-      task.due_date
-        ? [
-            {
-              id: `task-${task.id}`,
-              kind: "task",
-              date: task.due_date,
-              title: task.title,
-              meta: task.area || "Household task",
-              value: task.status,
-              item: task,
-            },
-          ]
-        : [],
-    ),
-    ...agenda.items.flatMap((item): DeadlineEvent[] => {
-      const itemEvents: DeadlineEvent[] = [];
-      if (item.replace_by_date) {
-        itemEvents.push({
-          id: `item-replace-${item.id}`,
-          kind: "item",
-          date: item.replace_by_date,
-          title: item.name,
-          meta: item.location || item.type || "Household item",
-          value: "Replace",
-          item,
-        });
-      }
-      if (item.restock_by_date) {
-        itemEvents.push({
-          id: `item-restock-${item.id}`,
-          kind: "item",
-          date: item.restock_by_date,
-          title: item.name,
-          meta: item.location || item.type || "Household item",
-          value: "Restock",
-          item,
-        });
-      }
-      return itemEvents;
-    }),
-    ...agenda.documents.flatMap((document): DeadlineEvent[] =>
-      document.expiry_date
-        ? [
-            {
-              id: `document-${document.id}`,
-              kind: "document",
-              date: document.expiry_date,
-              title: document.title,
-              meta: document.category || document.type || "Document",
-              value: "Expires",
-              item: document,
-            },
-          ]
-        : [],
-    ),
-  ];
-
-  return events
-    .filter((event) => event.date >= start && event.date <= end)
-    .sort((a, b) => a.date.localeCompare(b.date) || EVENT_ORDER[a.kind] - EVENT_ORDER[b.kind] || a.title.localeCompare(b.title));
+  if (!event.is_actionable) return <div className={`agendaRow forecast ${event.kind}`}>{content}</div>;
+  return <button className={`agendaRow ${event.kind}`} type="button" onClick={() => onOpenModal(eventModal(event))}>{content}</button>;
 }
 
-function toModal(event: DeadlineEvent): ModalState {
-  if (event.kind === "document") return { kind: "document", mode: "edit", item: event.item };
-  if (event.kind === "item") return { kind: "item", mode: "edit", item: event.item };
-  if (event.kind === "task") return { kind: "task", mode: "edit", item: event.item };
-  return { kind: "bill", mode: "edit", item: event.item };
+function eventModal(event: CalendarEvent): ModalState {
+  if (event.kind === "bill") return { kind: "bill", mode: "edit", item: event.source as Bill };
+  if (event.kind === "task") return { kind: "task", mode: "edit", item: event.source as Task };
+  if (event.kind === "item") return { kind: "item", mode: "edit", item: event.source as Item };
+  return { kind: "document", mode: "edit", item: event.source as DocumentRecord };
 }
 
-function makeDays(startISO: string, count: number) {
-  const startDate = new Date(`${startISO}T00:00:00`);
-  return Array.from({ length: count }, (_, index) => {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + index);
-    return {
-      iso: toISODate(date),
-      weekday: new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date),
-      day: new Intl.DateTimeFormat("en-US", { day: "numeric" }).format(date),
-    };
-  });
+function eventDetail(event: CalendarEvent) {
+  if (event.is_overdue) return `Overdue · originally due ${formatShortDate(event.original_due_date)}`;
+  if (event.is_forecast) return `Forecast · scheduled ${formatShortDate(event.scheduled_date)}`;
+  if (event.kind === "bill") {
+    const bill = event.source as Bill;
+    return [bill.source, bill.responsibility_label].filter(Boolean).join(" / ") || "Household bill";
+  }
+  if (event.kind === "task") return (event.source as Task).area || "Household task";
+  if (event.kind === "item") return (event.source as Item).location || (event.source as Item).type || "Household item";
+  return (event.source as DocumentRecord).category || (event.source as DocumentRecord).type || "Document";
 }
 
-function toISODate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+function eventValue(event: CalendarEvent) {
+  if (event.is_forecast) return "Forecast";
+  if (event.kind === "bill") return formatBillAmount(event.source as Bill);
+  if (event.kind === "task") return (event.source as Task).status;
+  if (event.kind === "item") return event.action === "replace" ? "Replace" : "Restock";
+  return "Expires";
 }
+
+function findCoveringAgenda(cache: Map<string, Agenda>, from: string, through: string) {
+  return [...cache.values()].find((agenda) => rangeContains(agenda, from, through)) || null;
+}
+
+function rangeContains(agenda: Agenda | null, from: string, through: string) {
+  return !!agenda && agenda.from <= from && agenda.through >= through;
+}
+
+function parseDate(iso: string) { return new Date(`${iso}T00:00:00Z`); }
+function toISODate(date: Date) { return date.toISOString().slice(0, 10); }
+function addDays(iso: string, days: number) { const date = parseDate(iso); date.setUTCDate(date.getUTCDate() + days); return toISODate(date); }
+function startOfWeek(iso: string) { const date = parseDate(iso); date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7)); return toISODate(date); }
+function weekEnd(iso: string) { return addDays(iso, 6); }
+function weekday(iso: string) { return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(parseDate(iso)); }
+function formatLongDate(iso: string) { return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" }).format(parseDate(iso)); }
+function weekTitle(weekStart: string) { return `${formatShortDate(weekStart)} – ${formatShortDate(weekEnd(weekStart))}`; }

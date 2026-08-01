@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Family Hub — Calendar layout options</title>
+    <style>
+      :root {
+        --ink: #07110d;
+        --deep: #07140f;
+        --deep-2: #10231a;
+        --paper: #f7efdf;
+        --paper-2: #fffaf0;
+        --card: #fffdf8;
+        --line: rgba(7, 17, 13, 0.14);
+        --muted: #56625b;
+        --gold: #dfb653;
+        --coral: #9f432c;
+        --mint: #2f6946;
+        --blue: #356873;
+        --shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; color: var(--paper); background: linear-gradient(135deg, #06110d, #10231a 58%, #07110d); }
+      button { font: inherit; cursor: pointer; }
+      button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+      .shell { display: grid; grid-template-columns: 76px minmax(0, 1fr); min-height: 100vh; gap: 10px; padding: 10px; }
+      .rail { position: sticky; top: 10px; height: calc(100vh - 20px); display: grid; align-content: start; justify-items: center; gap: 18px; padding: 12px 8px; border: 1px solid rgba(247,239,223,.15); border-radius: 18px; background: rgba(247,239,223,.07); box-shadow: var(--shadow); }
+      .mark, .rail-item { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; }
+      .mark { color: var(--gold); border: 1px solid rgba(223,182,83,.35); background: rgba(223,182,83,.1); font-size: 24px; }
+      .rail-item { color: rgba(247,239,223,.7); font-size: 20px; }
+      .rail-item.active { color: var(--ink); background: var(--gold); }
+
+      main { min-width: 0; display: grid; gap: 10px; align-content: start; }
+      .hero { padding: 22px 26px; border: 1px solid rgba(247,239,223,.15); border-radius: 18px; background: rgba(247,239,223,.08); box-shadow: var(--shadow); }
+      .eyebrow { margin: 0 0 4px; color: rgba(247,239,223,.62); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+      h1 { margin: 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.04em; }
+      .intro { max-width: 68ch; margin: 10px 0 0; color: rgba(247,239,223,.8); }
+
+      .jump { display: flex; flex-wrap: wrap; gap: 7px; padding: 8px; border: 1px solid rgba(247,239,223,.15); border-radius: 15px; background: rgba(247,239,223,.08); }
+      .jump a { padding: 7px 10px; color: var(--paper); text-decoration: none; font-size: 13px; font-weight: 800; border-radius: 999px; background: rgba(247,239,223,.1); }
+      .jump a:hover { background: rgba(247,239,223,.2); }
+
+      .option { overflow: hidden; color: var(--ink); border: 1px solid rgba(247,239,223,.45); border-radius: 18px; background: rgba(247,239,223,.95); box-shadow: var(--shadow); }
+      .option-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+      .option-header h2 { margin: 0; font-size: 22px; }
+      .option-header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+      .tag { flex: 0 0 auto; padding: 5px 9px; color: var(--ink); font-size: 12px; font-weight: 850; border-radius: 999px; background: #ead08e; }
+      .canvas { padding: 14px; background: linear-gradient(135deg, #f8f2e6, #f1eadb); }
+
+      .calendar-card { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
+      .calendar-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-bottom: 1px solid var(--line); }
+      .calendar-top h3 { margin: 0; font-size: 18px; }
+      .top-actions { display: flex; gap: 6px; }
+      .top-actions button { min-width: 34px; min-height: 32px; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; background: var(--paper-2); }
+      .top-actions .solid { padding: 0 10px; color: var(--ink); font-size: 13px; font-weight: 800; background: var(--gold); }
+      .week-grid { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); overflow-x: auto; }
+      .day { min-height: 176px; padding: 9px; border-right: 1px solid var(--line); }
+      .day:last-child { border-right: 0; }
+      .day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
+      .day-head strong { font-size: 13px; }
+      .day-head span { color: var(--muted); font-size: 12px; }
+      .today .day-head strong { padding: 3px 6px; color: var(--paper); border-radius: 6px; background: var(--deep-2); }
+      .event { display: grid; gap: 3px; margin: 6px 0; padding: 8px; color: var(--ink); text-align: left; border: 1px solid var(--line); border-left: 4px solid var(--event, var(--mint)); border-radius: 9px; background: white; }
+      .event b { font-size: 13px; }
+      .event small { color: var(--muted); font-size: 11px; }
+      .event .kind { color: var(--event, var(--mint)); font-size: 10px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+      .bill { --event: var(--coral); } .task { --event: var(--mint); } .item { --event: #806019; } .doc { --event: var(--blue); }
+      .week-footer { display: flex; gap: 8px; padding: 11px; border-top: 1px solid var(--line); }
+      .week-footer button { min-height: 34px; padding: 0 11px; color: var(--ink); font-size: 13px; font-weight: 800; border: 1px solid var(--line); border-radius: 9px; background: var(--paper-2); }
+
+      /* Option 1: one complete weekly board */
+      .weekly-board .week-grid { grid-template-columns: repeat(7, minmax(112px, 1fr)); }
+
+      /* Option 2: current week plus collapsed future weeks */
+      .future-weeks { display: grid; gap: 7px; margin-top: 10px; }
+      .future-week { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 0 13px; color: var(--ink); border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.54); }
+      .future-week strong { font-size: 15px; }
+      .future-week span { color: var(--muted); font-size: 13px; }
+
+      /* Option 3: an agenda for this week */
+      .agenda-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 10px; }
+      .agenda-days { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card); }
+      .agenda-day { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 11px; border-bottom: 1px solid var(--line); }
+      .agenda-day:last-child { border-bottom: 0; }
+      .agenda-date { color: var(--muted); font-size: 12px; font-weight: 800; }
+      .agenda-date strong { display: block; color: var(--ink); font-size: 18px; }
+      .agenda-events { display: flex; flex-wrap: wrap; gap: 7px; align-items: start; }
+      .agenda-events .event { min-width: 154px; flex: 1; margin: 0; }
+      .attention { padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+      .attention h3 { margin: 0 0 10px; font-size: 17px; }
+      .attention .event { margin-bottom: 8px; }
+
+      /* Option 4: scrollable continuous weekly sections */
+      .scroll-sample { display: grid; gap: 10px; max-height: 420px; overflow: auto; padding-right: 4px; }
+      .week-section { border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: var(--card); }
+      .week-title { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #f4eddf; }
+      .week-title strong { font-size: 16px; }
+      .week-section .week-grid .day { min-height: 135px; }
+
+      /* Option 5: focus + horizon */
+      .horizon-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 10px; }
+      .horizon-main, .horizon-side { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+      .horizon-main h3, .horizon-side h3 { margin: 0 0 9px; font-size: 17px; }
+      .horizon-main .week-grid { border: 1px solid var(--line); border-radius: 10px; }
+      .horizon-main .day { min-height: 146px; }
+      .horizon-side { display: grid; align-content: start; gap: 8px; }
+      .horizon-side .future-week { min-height: 46px; background: #fbf8f1; }
+      .choice-note { margin: 0; padding: 12px 15px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); background: #f7f1e5; }
+
+      @media (max-width: 900px) {
+        .shell { grid-template-columns: 1fr; padding: 8px; }
+        .rail { display: none; }
+        .hero { padding: 18px; }
+        .agenda-layout, .horizon-layout { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 560px) {
+        .canvas { padding: 8px; }
+        .option-header { align-items: start; flex-direction: column; }
+        .agenda-day { grid-template-columns: 1fr; gap: 7px; }
+        .agenda-events { display: grid; }
+        .week-grid { grid-template-columns: repeat(7, 130px); }
+        .day { min-height: 158px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail" aria-label="Visual reference navigation">
+        <div class="mark">⌂</div>
+        <div class="rail-item active">☀</div>
+        <div class="rail-item">▣</div>
+        <div class="rail-item">⌂</div>
+        <div class="rail-item">▱</div>
+      </aside>
+
+      <main>
+        <header class="hero">
+          <p class="eyebrow">Family Hub · standalone HTML exploration</p>
+          <h1>Five ways to plan the weeks ahead</h1>
+          <p class="intro">All options use the current dark-green and warm-paper language. Each deadline appears once; the differences are only in how the current week and later weeks are discovered.</p>
+        </header>
+
+        <nav class="jump" aria-label="Jump to layout option">
+          <a href="#one">1 · Week board</a><a href="#two">2 · Board + horizon</a><a href="#three">3 · Week agenda</a><a href="#four">4 · Continuous weeks</a><a href="#five">5 · Focus + horizon</a>
+        </nav>
+
+        <section id="one" class="option">
+          <header class="option-header"><div><h2>1. Full weekly board</h2><p>Best for a visual, at-a-glance week. Future weeks are reached with arrows.</p></div><span class="tag">Most familiar</span></header>
+          <div class="canvas weekly-board">
+            <div class="calendar-card">
+              <div class="calendar-top"><h3>This week · Aug 1–7</h3><div class="top-actions"><button aria-label="Previous week">‹</button><button class="solid">Today</button><button aria-label="Next week">›</button></div></div>
+              <div class="week-grid">
+                <div class="day today"><div class="day-head"><strong>Mon</strong><span>Aug 1</span></div><button class="event task"><span class="kind">Task</span><b>Change HVAC filter</b><small>Hall closet</small></button></div>
+                <div class="day"><div class="day-head"><strong>Tue</strong><span>Aug 2</span></div><button class="event bill"><span class="kind">Bill</span><b>Home Internet</b><small>$79 · Shared Visa</small></button><button class="event task"><span class="kind">Task</span><b>Take out recycling</b><small>Kitchen</small></button></div>
+                <div class="day"><div class="day-head"><strong>Wed</strong><span>Aug 3</span></div></div>
+                <div class="day"><div class="day-head"><strong>Thu</strong><span>Aug 4</span></div></div>
+                <div class="day"><div class="day-head"><strong>Fri</strong><span>Aug 5</span></div></div>
+                <div class="day"><div class="day-head"><strong>Sat</strong><span>Aug 6</span></div></div>
+                <div class="day"><div class="day-head"><strong>Sun</strong><span>Aug 7</span></div></div>
+              </div>
+              <div class="week-footer"><button>Open Aug 8–14</button><button>Jump to a date</button></div>
+            </div>
+          </div>
+          <p class="choice-note">Trade-off: very clear for this week, but later weeks require deliberate navigation.</p>
+        </section>
+
+        <section id="two" class="option">
+          <header class="option-header"><div><h2>2. Week board + upcoming-week horizon</h2><p>Current week stays prominent; later weeks are one click away without repeating content.</p></div><span class="tag">Balanced</span></header>
+          <div class="canvas">
+            <div class="calendar-card">
+              <div class="calendar-top"><h3>This week · Aug 1–7</h3><div class="top-actions"><button class="solid">Today</button><button aria-label="Next week">›</button></div></div>
+              <div class="week-grid">
+                <div class="day today"><div class="day-head"><strong>Mon</strong><span>Aug 1</span></div><button class="event task"><span class="kind">Task</span><b>Change HVAC filter</b><small>Hall closet</small></button></div>
+                <div class="day"><div class="day-head"><strong>Tue</strong><span>Aug 2</span></div><button class="event bill"><span class="kind">Bill</span><b>Home Internet</b><small>$79 · Shared Visa</small></button><button class="event task"><span class="kind">Task</span><b>Take out recycling</b><small>Kitchen</small></button></div>
+                <div class="day"><div class="day-head"><strong>Wed</strong><span>Aug 3</span></div></div><div class="day"><div class="day-head"><strong>Thu</strong><span>Aug 4</span></div></div><div class="day"><div class="day-head"><strong>Fri</strong><span>Aug 5</span></div></div><div class="day"><div class="day-head"><strong>Sat</strong><span>Aug 6</span></div></div><div class="day"><div class="day-head"><strong>Sun</strong><span>Aug 7</span></div></div>
+              </div>
+            </div>
+            <div class="future-weeks">
+              <button class="future-week"><strong>Next week · Aug 8–14</strong><span>3 deadlines · View week ›</span></button>
+              <button class="future-week"><strong>Aug 15–21</strong><span>2 deadlines · View week ›</span></button>
+              <button class="future-week"><strong>Aug 22–28</strong><span>1 deadline · View week ›</span></button>
+            </div>
+          </div>
+          <p class="choice-note">Trade-off: gives a reliable future horizon while preserving a calm top-level layout.</p>
+        </section>
+
+        <section id="three" class="option">
+          <header class="option-header"><div><h2>3. This-week agenda</h2><p>A scanning-friendly list for households that care more about what happens on each day than open time slots.</p></div><span class="tag">Best mobile fit</span></header>
+          <div class="canvas agenda-layout">
+            <div class="agenda-days">
+              <div class="agenda-day"><div class="agenda-date"><strong>Mon</strong>Aug 1 · Today</div><div class="agenda-events"><button class="event task"><span class="kind">Task</span><b>Change HVAC filter</b><small>Hall closet</small></button></div></div>
+              <div class="agenda-day"><div class="agenda-date"><strong>Tue</strong>Aug 2</div><div class="agenda-events"><button class="event bill"><span class="kind">Bill</span><b>Home Internet</b><small>$79 · Shared Visa</small></button><button class="event task"><span class="kind">Task</span><b>Take out recycling</b><small>Kitchen</small></button></div></div>
+              <div class="agenda-day"><div class="agenda-date"><strong>Wed</strong>Aug 3</div><div class="agenda-events"><span class="day-head"><span>Nothing scheduled</span></span></div></div>
+              <div class="agenda-day"><div class="agenda-date"><strong>Fri</strong>Aug 5</div><div class="agenda-events"><button class="event doc"><span class="kind">Document</span><b>Insurance policy review</b><small>Due this week</small></button></div></div>
+            </div>
+            <aside class="attention"><h3>Needs attention</h3><button class="event bill"><span class="kind">Overdue bill</span><b>Electric Bill</b><small>Due Aug 8</small></button><button class="event doc"><span class="kind">Upcoming document</span><b>Passport renewal</b><small>Due Sep 1</small></button></aside>
+          </div>
+          <p class="choice-note">Trade-off: easiest to read and works on phones, but loses the seven-day spatial overview.</p>
+        </section>
+
+        <section id="four" class="option">
+          <header class="option-header"><div><h2>4. Continuous weekly scroll</h2><p>One calendar surface: current week, then the weeks after it. Scroll forward to plan farther ahead.</p></div><span class="tag">Strongest horizon</span></header>
+          <div class="canvas">
+            <div class="scroll-sample" aria-label="Scrollable future weeks example">
+              <section class="week-section"><div class="week-title"><strong>This week · Aug 1–7</strong><button class="solid">Today</button></div><div class="week-grid"><div class="day today"><div class="day-head"><strong>Mon</strong><span>1</span></div><button class="event task"><span class="kind">Task</span><b>Change HVAC filter</b><small>Hall closet</small></button></div><div class="day"><div class="day-head"><strong>Tue</strong><span>2</span></div><button class="event bill"><span class="kind">Bill</span><b>Home Internet</b><small>$79</small></button><button class="event task"><span class="kind">Task</span><b>Recycling</b><small>Kitchen</small></button></div><div class="day"><div class="day-head"><strong>Wed</strong><span>3</span></div></div><div class="day"><div class="day-head"><strong>Thu</strong><span>4</span></div></div><div class="day"><div class="day-head"><strong>Fri</strong><span>5</span></div></div><div class="day"><div class="day-head"><strong>Sat</strong><span>6</span></div></div><div class="day"><div class="day-head"><strong>Sun</strong><span>7</span></div></div></div></section>
+              <section class="week-section"><div class="week-title"><strong>Next week · Aug 8–14</strong><span>3 deadlines</span></div><div class="week-grid"><div class="day"><div class="day-head"><strong>Mon</strong><span>8</span></div><button class="event bill"><span class="kind">Bill</span><b>Electric Bill</b><small>Varies</small></button></div><div class="day"><div class="day-head"><strong>Tue</strong><span>9</span></div></div><div class="day"><div class="day-head"><strong>Wed</strong><span>10</span></div><button class="event item"><span class="kind">Restock</span><b>Laundry detergent</b><small>Pantry</small></button></div><div class="day"><div class="day-head"><strong>Thu</strong><span>11</span></div></div><div class="day"><div class="day-head"><strong>Fri</strong><span>12</span></div></div><div class="day"><div class="day-head"><strong>Sat</strong><span>13</span></div></div><div class="day"><div class="day-head"><strong>Sun</strong><span>14</span></div></div></div></section>
+              <section class="week-section"><div class="week-title"><strong>Aug 15–21</strong><span>2 deadlines</span></div><div class="week-grid"><div class="day"><div class="day-head"><strong>Mon</strong><span>15</span></div><button class="event doc"><span class="kind">Document</span><b>Insurance review</b><small>Expires Sep 15</small></button></div><div class="day"><div class="day-head"><strong>Tue</strong><span>16</span></div></div><div class="day"><div class="day-head"><strong>Wed</strong><span>17</span></div></div><div class="day"><div class="day-head"><strong>Thu</strong><span>18</span></div></div><div class="day"><div class="day-head"><strong>Fri</strong><span>19</span></div></div><div class="day"><div class="day-head"><strong>Sat</strong><span>20</span></div></div><div class="day"><div class="day-head"><strong>Sun</strong><span>21</span></div></div></div></section>
+            </div>
+          </div>
+          <p class="choice-note">Trade-off: matches the desired “this week, then scroll forward” behavior most directly; needs a clear sticky week heading and a return-to-today control.</p>
+        </section>
+
+        <section id="five" class="option">
+          <header class="option-header"><div><h2>5. Focused week + simple horizon</h2><p>A light version of the current dashboard: calendar is primary, with only future-week summaries beside it.</p></div><span class="tag">Least change</span></header>
+          <div class="canvas horizon-layout">
+            <section class="horizon-main"><h3>This week · Aug 1–7</h3><div class="week-grid"><div class="day today"><div class="day-head"><strong>Mon</strong><span>1</span></div><button class="event task"><span class="kind">Task</span><b>Change HVAC filter</b><small>Hall closet</small></button></div><div class="day"><div class="day-head"><strong>Tue</strong><span>2</span></div><button class="event bill"><span class="kind">Bill</span><b>Home Internet</b><small>$79</small></button><button class="event task"><span class="kind">Task</span><b>Recycling</b><small>Kitchen</small></button></div><div class="day"><div class="day-head"><strong>Wed</strong><span>3</span></div></div><div class="day"><div class="day-head"><strong>Thu</strong><span>4</span></div></div><div class="day"><div class="day-head"><strong>Fri</strong><span>5</span></div></div><div class="day"><div class="day-head"><strong>Sat</strong><span>6</span></div></div><div class="day"><div class="day-head"><strong>Sun</strong><span>7</span></div></div></div></section>
+            <aside class="horizon-side"><h3>Upcoming weeks</h3><button class="future-week"><strong>Aug 8–14</strong><span>3 deadlines ›</span></button><button class="future-week"><strong>Aug 15–21</strong><span>2 deadlines ›</span></button><button class="future-week"><strong>Aug 22–28</strong><span>1 deadline ›</span></button><button class="future-week"><strong>Choose date</strong><span>Calendar ›</span></button></aside>
+          </div>
+          <p class="choice-note">Trade-off: the easiest migration from the current design, but future items still require opening a week.</p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

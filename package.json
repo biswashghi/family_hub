@@ -10,15 +10,16 @@
     "build": "vite build --config vite.config.ts",
     "typecheck": "tsc --noEmit",
     "start": "node server.js",
+    "local:test": "bash scripts/local-test.sh",
     "backup:data": "node scripts/backup-data.mjs",
     "test:e2e": "node --test tests/e2e/*.test.js",
+    "test:quality": "npm run typecheck && npm run build && node scripts/check-quality.mjs",
     "docker:build": "docker build -t family-hub:local .",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
-    "cytoscape": "^3.33.3",
     "express": "^4.21.2",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.25.0",

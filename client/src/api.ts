@@ -5,6 +5,7 @@ export type Session = {
 };
 
 export type Environment = {
+  today: string;
   location: {
     label: string;
     latitude: number;
@@ -27,6 +28,10 @@ export type Bill = {
   autopay_enabled?: boolean;
   is_subscription?: boolean;
   notes?: string;
+  recurrence_unit?: "one_time" | "day" | "week" | "month" | "year";
+  recurrence_interval?: number;
+  recurrence_day_of_month?: number | null;
+  recurrence_end_date?: string | null;
 };
 
 export type Task = {
@@ -74,31 +79,28 @@ export type Note = {
   is_archived?: boolean;
 };
 
-export type Dashboard = {
-  metrics: {
-    dueSoonCount: number;
-    tasksTodayCount: number;
-    docsExpiringCount: number;
-    replaceSoonCount: number;
-    openBillsCount: number;
-    openTasksCount: number;
-    storedDocsCount: number;
-    activeNotesCount: number;
-  };
-  upcomingBills: Bill[];
-  tasksToday: Task[];
-  importantDocs: DocumentRecord[];
-  replaceSoon: Item[];
-  recentNotes: Note[];
-};
-
 export type Agenda = {
   today: string;
+  from: string;
   through: string;
-  bills: Bill[];
-  tasks: Task[];
-  items: Item[];
-  documents: DocumentRecord[];
+  events: CalendarEvent[];
+};
+
+export type CalendarEventKind = "bill" | "task" | "item" | "document";
+
+export type CalendarEvent = {
+  id: string;
+  kind: CalendarEventKind;
+  source_id: string;
+  action: "due" | "replace" | "restock" | "expires";
+  title: string;
+  scheduled_date: string;
+  display_date: string;
+  original_due_date: string | null;
+  is_forecast: boolean;
+  is_overdue: boolean;
+  is_actionable: boolean;
+  source: Bill | Task | Item | DocumentRecord;
 };
 
 export type MoneyOverview = {
@@ -170,61 +172,5 @@ export type NotesResponse = {
   notes: Note[];
 };
 
-export class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
-
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const isFormData = options.body instanceof FormData;
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: isFormData
-      ? options.headers
-      : {
-          "content-type": "application/json",
-          ...(options.headers || {}),
-        },
-    ...options,
-  });
-
-  if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const body = (await response.json()) as { error?: string };
-      message = body.error || message;
-    } catch {
-      // Keep the HTTP status text when the response is not JSON.
-    }
-    throw new ApiError(message, response.status);
-  }
-
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
-}
-
-export function formatMoney(amount: number | null | undefined, currency = "USD") {
-  if (amount === null || amount === undefined) return "TBD";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
-}
-
-export function formatBillAmount(bill: Bill) {
-  if (bill.amount_type === "unknown") return "TBD";
-  if (bill.amount_type === "variable") return bill.amount === null ? "varies" : `varies ${formatMoney(bill.amount, bill.currency)}`;
-  if (bill.amount_type === "estimated") return bill.amount === null ? "estimate TBD" : `~${formatMoney(bill.amount, bill.currency)}`;
-  return formatMoney(bill.amount, bill.currency);
-}
-
-export function formatShortDate(iso?: string | null) {
-  if (!iso) return "No date";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(`${iso}T00:00:00`));
-}
-
-export function todayISO() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
+export { api, ApiError } from "./api/client";
+export { formatBillAmount, formatMoney, formatShortDate, todayISO } from "./api/formatting";

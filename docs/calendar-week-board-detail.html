@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Family Hub — Weekly board prototype</title>
+    <style>
+      :root {
+        --ink: #07110d;
+        --deep: #07140f;
+        --deep-2: #10231a;
+        --paper: #f7efdf;
+        --paper-2: #fffaf0;
+        --card: #fffdf8;
+        --line: rgba(7, 17, 13, 0.14);
+        --muted: #5d655e;
+        --gold: #dfb653;
+        --coral: #9f432c;
+        --mint: #2f6946;
+        --blue: #356873;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      body { min-width: 320px; min-height: 100vh; margin: 0; color: var(--paper); background: linear-gradient(135deg, #06110d, #10231a 58%, #07110d); }
+      button { font: inherit; cursor: pointer; }
+      button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+      .app { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px; min-height: 100vh; padding: 10px; }
+      .rail { display: grid; align-content: start; justify-items: center; gap: 14px; padding: 11px 7px; border: 1px solid rgba(247,239,223,.15); border-radius: 18px; background: rgba(247,239,223,.07); }
+      .rail-mark, .rail-item { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; }
+      .rail-mark { color: var(--gold); border: 1px solid rgba(223,182,83,.35); background: rgba(223,182,83,.1); font-size: 24px; }
+      .rail-item { color: rgba(247,239,223,.7); font-size: 19px; }
+      .rail-item.active { color: var(--ink); background: var(--gold); }
+
+      main { display: grid; align-content: start; gap: 10px; min-width: 0; }
+      .header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px; border: 1px solid rgba(247,239,223,.15); border-radius: 18px; background: rgba(247,239,223,.08); }
+      .eyebrow { margin: 0 0 4px; color: rgba(247,239,223,.62); font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+      h1 { margin: 0; font-size: clamp(30px, 4vw, 44px); letter-spacing: -.04em; }
+      .today-button { min-height: 38px; padding: 0 12px; color: var(--ink); font-size: 14px; font-weight: 850; border: 0; border-radius: 10px; background: var(--gold); }
+
+      .panel { overflow: hidden; color: var(--ink); border: 1px solid rgba(247,239,223,.52); border-radius: 18px; background: rgba(247,239,223,.95); box-shadow: 0 18px 52px rgba(0,0,0,.24); }
+      .panel-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+      .panel-top h2 { margin: 0; font-size: 21px; }
+      .week-controls { display: flex; gap: 6px; }
+      .week-controls button { min-width: 36px; min-height: 34px; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; background: var(--paper-2); }
+      .week-controls button:nth-child(2) { min-width: auto; padding: 0 10px; font-size: 13px; font-weight: 850; background: var(--gold); }
+
+      .week-scroll { overflow-x: auto; }
+      .week { display: grid; grid-template-columns: repeat(7, minmax(128px, 1fr)); min-width: 896px; }
+      .day { min-height: 234px; padding: 9px; color: var(--ink); text-align: left; border: 0; border-right: 1px solid var(--line); background: rgba(255,255,255,.2); cursor: pointer; }
+      .day:last-child { border-right: 0; }
+      .day[aria-pressed="true"] { background: #f0e8d7; box-shadow: inset 0 -4px 0 var(--deep); }
+      .day:hover { background: #f6f0e4; }
+      .day:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+      .day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; padding-bottom: 9px; }
+      .day-head b { font-size: 14px; }
+      .day-head span { color: var(--muted); font-size: 12px; }
+      .day.today .day-head b { padding: 3px 6px; color: var(--paper); border-radius: 6px; background: var(--deep-2); }
+      .preview { display: grid; gap: 5px; }
+      .preview-item { padding: 7px; border: 1px solid var(--line); border-left: 3px solid var(--tone, var(--mint)); border-radius: 8px; background: rgba(255,255,255,.76); }
+      .preview-item strong, .preview-item small { display: block; }
+      .preview-item strong { overflow: hidden; font-size: 12px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+      .preview-item small { margin-top: 2px; color: var(--muted); font-size: 10px; }
+      .bill { --tone: var(--coral); } .task { --tone: var(--mint); } .item { --tone: #806019; } .doc { --tone: var(--blue); }
+      .more { width: 100%; min-height: 32px; color: var(--ink); font-size: 12px; font-weight: 850; border: 1px dashed rgba(7,17,13,.28); border-radius: 8px; background: transparent; }
+      .empty { display: grid; min-height: 130px; place-items: center; color: #829087; font-size: 12px; }
+      .empty span { padding: 4px 7px; border-radius: 999px; background: rgba(47,105,70,.08); }
+
+      .detail { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 10px; padding: 12px; border-top: 1px solid var(--line); background: #f5eddf; }
+      .detail-main { min-width: 0; }
+      .detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+      .detail-heading h3 { margin: 0; font-size: 18px; }
+      .detail-heading span { padding: 4px 7px; color: var(--deep); font-size: 12px; font-weight: 850; border-radius: 999px; background: rgba(47,105,70,.12); }
+      .detail-list { display: grid; gap: 6px; }
+      .detail-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 42px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+      .detail-row i { width: 8px; height: 8px; border-radius: 999px; background: var(--tone, var(--mint)); }
+      .detail-row b, .detail-row small { display: block; }
+      .detail-row b { font-size: 13px; }
+      .detail-row small { margin-top: 1px; color: var(--muted); font-size: 11px; }
+      .detail-row time { color: var(--tone, var(--mint)); font-size: 12px; font-weight: 850; }
+      .detail-aside { display: grid; align-content: start; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+      .detail-aside h4 { margin: 0; font-size: 14px; }
+      .detail-aside p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+      .note { margin: 0; padding: 11px 14px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); background: #f8f2e7; }
+      @media (max-width: 740px) { .app { grid-template-columns: 1fr; padding: 8px; } .rail { display: none; } .header { padding: 16px; } .detail { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail" aria-label="Visual reference navigation"><div class="rail-mark">⌂</div><div class="rail-item active">☀</div><div class="rail-item">▣</div><div class="rail-item">⌂</div><div class="rail-item">▱</div></aside>
+      <main>
+        <header class="header"><div><p class="eyebrow">Family Hub · standalone prototype</p><h1>Calendar</h1></div><button class="today-button">Today</button></header>
+        <section class="panel" aria-labelledby="week-heading">
+          <div class="panel-top"><h2 id="week-heading">This week · Aug 1–7</h2><div class="week-controls"><button aria-label="Previous week">‹</button><button>Today</button><button aria-label="Next week">›</button></div></div>
+          <div class="week-scroll"><div class="week" id="week-grid"></div></div>
+          <section class="detail" aria-live="polite" aria-labelledby="detail-heading">
+            <div class="detail-main"><div class="detail-heading"><h3 id="detail-heading">Tuesday, Aug 2</h3><span id="detail-count">10 items</span></div><div id="detail-list" class="detail-list"></div></div>
+            <aside class="detail-aside"><h4>How this stays readable</h4><p>Each day column has room for three previews. A busy day stays the same height as an empty day; its complete agenda appears only when selected.</p></aside>
+          </section>
+          <p class="note">Try each day. Tuesday demonstrates a 10-item day; Thursday and Sunday demonstrate empty days. The week itself changes with left/right controls rather than an endless vertical feed.</p>
+        </section>
+      </main>
+    </div>
+    <script>
+      const days = [
+        { label: "Mon", date: "Aug 1", today: true, events: [{ kind: "task", title: "Change HVAC filter", meta: "Hall closet", time: "Today" }] },
+        { label: "Tue", date: "Aug 2", events: [
+          { kind: "bill", title: "Home Internet", meta: "$79 · Shared Visa", time: "8:00 AM" },
+          { kind: "task", title: "Take out recycling", meta: "Kitchen", time: "Before 8 AM" },
+          { kind: "task", title: "Call plumber", meta: "Kitchen sink", time: "9:30 AM" },
+          { kind: "item", title: "Restock detergent", meta: "Pantry", time: "Any time" },
+          { kind: "bill", title: "Pay water bill", meta: "$42 · Checking", time: "Any time" },
+          { kind: "task", title: "Book dentist", meta: "Family", time: "Any time" },
+          { kind: "doc", title: "Upload insurance card", meta: "Documents", time: "Any time" },
+          { kind: "task", title: "Clean fridge", meta: "Kitchen", time: "Evening" },
+          { kind: "item", title: "Replace batteries", meta: "Smoke detector", time: "Evening" },
+          { kind: "task", title: "Set trash out", meta: "Curb", time: "Evening" }
+        ]},
+        { label: "Wed", date: "Aug 3", events: [{ kind: "doc", title: "Insurance review", meta: "Expires Sep 15", time: "Any time" }, { kind: "task", title: "Water plants", meta: "Living room", time: "Evening" }] },
+        { label: "Thu", date: "Aug 4", events: [] },
+        { label: "Fri", date: "Aug 5", events: [{ kind: "task", title: "Vacuum upstairs", meta: "Home", time: "Evening" }] },
+        { label: "Sat", date: "Aug 6", events: [{ kind: "item", title: "Restock paper towels", meta: "Pantry", time: "Any time" }] },
+        { label: "Sun", date: "Aug 7", events: [] }
+      ];
+
+      let selected = 1;
+      const grid = document.querySelector("#week-grid");
+      const detailHeading = document.querySelector("#detail-heading");
+      const detailCount = document.querySelector("#detail-count");
+      const detailList = document.querySelector("#detail-list");
+
+      function render() {
+        grid.innerHTML = days.map((day, index) => {
+          const preview = day.events.slice(0, 3).map(event => `<div class="preview-item ${event.kind}"><strong>${event.title}</strong><small>${event.meta}</small></div>`).join("");
+          const more = day.events.length > 3 ? `<button class="more" data-index="${index}">+${day.events.length - 3} more</button>` : "";
+          const empty = !day.events.length ? `<div class="empty"><span>Clear</span></div>` : "";
+          return `<div class="day ${day.today ? "today" : ""}" data-index="${index}" role="button" tabindex="0" aria-pressed="${index === selected}"><div class="day-head"><b>${day.label}</b><span>${day.date}</span></div><div class="preview">${preview}${more}${empty}</div></div>`;
+        }).join("");
+        grid.querySelectorAll(".day").forEach(day => {
+          const selectDay = () => { selected = Number(day.dataset.index); render(); };
+          day.addEventListener("click", selectDay);
+          day.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectDay(); } });
+        });
+        grid.querySelectorAll(".more").forEach(button => button.addEventListener("click", event => { event.stopPropagation(); selected = Number(button.dataset.index); render(); }));
+        renderDetails();
+      }
+
+      function renderDetails() {
+        const day = days[selected];
+        detailHeading.textContent = `${day.label === "Tue" ? "Tuesday" : day.label === "Wed" ? "Wednesday" : day.label === "Thu" ? "Thursday" : day.label === "Fri" ? "Friday" : day.label === "Sat" ? "Saturday" : day.label === "Sun" ? "Sunday" : "Monday"}, ${day.date}`;
+        detailCount.textContent = `${day.events.length} ${day.events.length === 1 ? "item" : "items"}`;
+        detailList.innerHTML = day.events.length ? day.events.map(event => `<div class="detail-row ${event.kind}"><i></i><div><b>${event.title}</b><small>${event.meta}</small></div><time>${event.time}</time></div>`).join("") : `<div class="detail-row"><i></i><div><b>Nothing scheduled</b><small>This day is clear.</small></div><time>—</time></div>`;
+      }
+
+      render();
+    </script>
+  </body>
+</html>

@@ -1,4 +1,13 @@
 import { addDaysISO } from "./dates.js";
+import { buildCalendarEvents, resolveAgendaRange } from "./calendar.js";
+import {
+  buildBillSummary,
+  buildDashboardOverview,
+  buildDocsOverview,
+  buildHomeOverview,
+  buildMoneyOverview,
+  buildNotesOverview,
+} from "../server/services/overview-builders.js";
 
 function makeDemoData(todayISO) {
   const today = todayISO();
@@ -210,107 +219,52 @@ export function createDemoApiHandler({ todayISO }) {
     const demo = makeDemoData(todayISO);
     const openBills = demo.bills.filter((bill) => bill.status === "open");
     const openTasks = demo.tasks.filter((task) => ["open", "snoozed"].includes(task.status));
-    const importantDocs = demo.documents.filter((doc) => doc.is_pinned || (doc.expiry_date && doc.expiry_date <= demo.nextMonth));
-    const dueTasks = demo.tasks.filter((task) => ["open", "snoozed"].includes(task.status) && task.due_date && task.due_date <= demo.today);
-    const dueSoonBills = demo.bills.filter((bill) => bill.status === "open" && bill.due_date <= demo.nextWeek);
-    const monthBills = demo.bills.filter((bill) => bill.status === "open" && bill.due_date <= demo.nextMonth);
-    const dueItems = demo.items.filter(
-      (item) =>
-        item.status === "active" &&
-        ((item.replace_by_date && item.replace_by_date <= demo.nextMonth) || (item.restock_by_date && item.restock_by_date <= demo.nextMonth)),
-    );
+    const overviewSources = {
+      today: demo.today,
+      bills: demo.bills,
+      tasks: demo.tasks,
+      items: demo.items,
+      documents: demo.documents,
+      notes: demo.notes,
+    };
 
     if (req.path === "/dashboard") {
-      return res.json({
-        metrics: {
-          dueSoonCount: dueSoonBills.length,
-          tasksTodayCount: dueTasks.length,
-          docsExpiringCount: demo.documents.filter((doc) => doc.expiry_date && doc.expiry_date <= demo.nextMonth).length,
-          replaceSoonCount: dueItems.length,
-          openBillsCount: openBills.length,
-          openTasksCount: openTasks.length,
-          storedDocsCount: demo.documents.length,
-          activeNotesCount: demo.notes.filter((note) => !note.is_archived).length,
-        },
-        upcomingBills: dueSoonBills,
-        tasksToday: dueTasks,
-        importantDocs,
-        replaceSoon: dueItems,
-        recentNotes: demo.notes.filter((note) => !note.is_archived),
-      });
+      return res.json(buildDashboardOverview(overviewSources));
     }
 
     if (req.path === "/agenda") {
-      return res.json({ today: demo.today, through: demo.nextMonth, bills: monthBills, tasks: openTasks, items: dueItems, documents: importantDocs });
+      const range = resolveAgendaRange(req.query, demo.today);
+      if (range.error) return res.status(400).json({ error: range.error });
+      const { from, through } = range;
+      return res.json({
+        today: demo.today,
+        from,
+        through,
+        events: buildCalendarEvents({ today: demo.today, from, through, bills: openBills, tasks: openTasks, items: demo.items, documents: demo.documents }),
+      });
     }
 
     if (req.path === "/money/overview") {
-      return res.json({
-        today: demo.today,
-        summary: {
-          due_this_week: dueSoonBills.length,
-          due_this_month: monthBills.length,
-          autopay_enabled: demo.bills.filter((bill) => bill.autopay_enabled).length,
-          overdue: demo.bills.filter((bill) => bill.status === "open" && bill.due_date < demo.today).length,
-        },
-        dueSoon: dueSoonBills,
-        overdue: demo.bills.filter((bill) => bill.status === "open" && bill.due_date < demo.today),
-        subscriptions: demo.bills.filter((bill) => bill.is_subscription),
-      });
+      return res.json(buildMoneyOverview(overviewSources));
     }
 
     if (req.path === "/home/overview") {
-      return res.json({
-        today: demo.today,
-        metrics: {
-          openTasksCount: openTasks.length,
-          dueTodayCount: dueTasks.length,
-          replaceSoonCount: demo.items.filter((item) => item.replace_by_date && item.replace_by_date <= demo.nextMonth).length,
-          restockSoonCount: demo.items.filter((item) => item.restock_by_date && item.restock_by_date <= demo.nextMonth).length,
-        },
-        dueTasks,
-        replaceSoon: demo.items.filter((item) => item.replace_by_date && item.replace_by_date <= demo.nextMonth),
-        restockSoon: demo.items.filter((item) => item.restock_by_date && item.restock_by_date <= demo.nextMonth),
-      });
+      return res.json(buildHomeOverview(overviewSources));
     }
 
     if (req.path === "/docs/overview") {
-      return res.json({
-        metrics: {
-          pinnedCount: demo.documents.filter((doc) => doc.is_pinned).length,
-          expiringSoonCount: demo.documents.filter((doc) => doc.expiry_date && doc.expiry_date <= demo.nextMonth).length,
-          storedCount: demo.documents.length,
-        },
-        pinned: demo.documents.filter((doc) => doc.is_pinned),
-        expiringSoon: demo.documents.filter((doc) => doc.expiry_date && doc.expiry_date <= demo.nextMonth),
-        recent: demo.documents,
-      });
+      return res.json(buildDocsOverview(overviewSources));
     }
 
     if (req.path === "/notes/overview") {
-      return res.json({
-        metrics: {
-          activeCount: demo.notes.filter((note) => !note.is_archived).length,
-          pinnedCount: demo.notes.filter((note) => !note.is_archived && note.is_pinned).length,
-          ideaCount: demo.notes.filter((note) => !note.is_archived && note.note_type === "idea").length,
-          archivedCount: demo.notes.filter((note) => note.is_archived).length,
-        },
-        pinned: demo.notes.filter((note) => !note.is_archived && note.is_pinned),
-        recent: demo.notes.filter((note) => !note.is_archived),
-        ideas: demo.notes.filter((note) => !note.is_archived && note.note_type === "idea"),
-      });
+      return res.json(buildNotesOverview(overviewSources));
     }
 
     if (req.path === "/bills") {
       const rows = filterDemoBills(demo.bills, req.query);
       return res.json({
         bills: rows,
-        summary: {
-          due_this_week: rows.filter((bill) => bill.status === "open" && bill.due_date <= demo.nextWeek).length,
-          due_this_month: rows.filter((bill) => bill.status === "open" && bill.due_date <= demo.nextMonth).length,
-          autopay_enabled: rows.filter((bill) => bill.autopay_enabled).length,
-          overdue: rows.filter((bill) => bill.status === "open" && bill.due_date < demo.today).length,
-        },
+        summary: buildBillSummary(rows, demo.today),
       });
     }
 

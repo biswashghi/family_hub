@@ -1,12 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import { Folder, Home, NotebookPen, Sun, WalletCards } from "lucide-react";
-import type { Agenda, Bill, Dashboard, DocsOverview, DocumentRecord, Environment, HomeOverview, Item, MoneyOverview, Note, NotesOverview, Session, Task } from "./api";
+import type { Agenda, Bill, DocsOverview, DocumentRecord, Environment, HomeOverview, Item, MoneyOverview, Note, NotesOverview, Session, Task } from "./api";
 
 export type ViewName = "today" | "money" | "home" | "docs" | "notes";
 export type LoadState = "loading" | "ready" | "error";
 
 export type AppData = {
-  dashboard: Dashboard | null;
   agenda: Agenda | null;
   money: MoneyOverview | null;
   home: HomeOverview | null;
@@ -25,15 +24,6 @@ export type ModalState =
   | { kind: "item"; mode: "create" | "edit"; item?: Item }
   | { kind: "document"; mode: "create" | "edit"; item?: DocumentRecord }
   | { kind: "note"; mode: "create" | "edit"; item?: Note };
-
-export type QueueItem = {
-  id: string;
-  kind: "bill" | "task" | "doc" | "item" | "note";
-  date: string;
-  title: string;
-  detail: string;
-  value: string;
-};
 
 export type NavItem = {
   view: ViewName;
@@ -64,7 +54,6 @@ export const VIEW_TITLES: Record<ViewName, string> = {
 };
 
 export const emptyData: AppData = {
-  dashboard: null,
   agenda: null,
   money: null,
   home: null,

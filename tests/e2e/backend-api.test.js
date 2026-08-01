@@ -278,6 +278,43 @@ test("demo login is read-only and uses sample data", async () => {
   }
 });
 
+test("agenda range returns every requested item and keeps overdue records on today", async () => {
+  const context = await startServer();
+  try {
+    const cookie = await login(context.baseUrl);
+    const initialAgenda = await api(context.baseUrl, cookie, "/api/agenda");
+    const today = initialAgenda.body.today;
+
+    for (let index = 1; index <= 10; index += 1) {
+      const created = await api(context.baseUrl, cookie, "/api/tasks", {
+        method: "POST",
+        body: JSON.stringify({ title: `Calendar load ${index}`, area: "testing", due_date: today }),
+      });
+      assert.equal(created.response.status, 201);
+    }
+
+    const overdueDate = addDaysISO(today, -2);
+    const overdueBill = await api(context.baseUrl, cookie, "/api/bills", {
+      method: "POST",
+      body: JSON.stringify({ title: "Overdue calendar bill", category: "utility", amount: 12, currency: "USD", due_date: overdueDate }),
+    });
+    assert.equal(overdueBill.response.status, 201);
+
+    const agenda = await api(context.baseUrl, cookie, `/api/agenda?from=${today}&through=${today}`);
+    assert.equal(agenda.response.status, 200);
+    assert.equal(agenda.body.events.filter((event) => event.title.startsWith("Calendar load")).length, 10);
+    const overdue = agenda.body.events.find((event) => event.title === "Overdue calendar bill");
+    assert.equal(overdue.display_date, today);
+    assert.equal(overdue.original_due_date, overdueDate);
+    assert.equal(overdue.is_overdue, true);
+
+    const invalidRange = await api(context.baseUrl, cookie, `/api/agenda?from=${today}&through=${addDaysISO(today, 85)}`);
+    assert.equal(invalidRange.response.status, 400);
+  } finally {
+    await stopServer(context);
+  }
+});
+
 test("production config no longer requires env credentials", () => {
   const config = withEnv(
     {

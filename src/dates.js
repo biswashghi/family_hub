@@ -27,6 +27,13 @@ export function addDaysISO(iso, days) {
   return toISODate(date);
 }
 
+export function startOfWeekISO(iso) {
+  const date = parseISODate(iso);
+  const mondayOffset = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - mondayOffset);
+  return toISODate(date);
+}
+
 export function isValidISODate(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ""))) return false;
   return toISODate(parseISODate(iso)) === String(iso);

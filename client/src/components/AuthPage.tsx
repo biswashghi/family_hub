@@ -70,7 +70,7 @@ export function AuthPage() {
             <span>Password</span>
             <input name="password" type="password" autoComplete={setupRequired ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} required />
           </label>
-          {error && <p className="formError">{error}</p>}
+          {error && <p className="formError" role="alert">{error}</p>}
           <button className="authSubmit" type="submit" disabled={busy}>
             {setupRequired ? "Create account" : "Enter Family Hub"}
           </button>
