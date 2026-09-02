@@ -1,6 +1,8 @@
-# Hetzner Production Runbook
+# Shared VPS production runbook
 
-Family Hub is intended to be private and family-only. Production should run behind HTTPS with the app container bound to localhost on the VPS.
+Family Hub is intended to be private and family-only. Production runs behind the
+provider-neutral shared VPS platform. The container is not published on a host
+port; it joins `vps-edge` under the `family-hub` alias.
 
 ## Optional Deployment Environment
 
@@ -9,7 +11,8 @@ export FAMILY_HUB_TIME_ZONE="America/Detroit"
 export FAMILY_HUB_LOCATION_LABEL="Detroit, MI"
 export FAMILY_HUB_WEATHER_LATITUDE="42.3314"
 export FAMILY_HUB_WEATHER_LONGITUDE="-83.0458"
-export APP_HOST_PORT="8787"
+export FAMILY_DOMAIN="family.example.com"
+export FAMILY_HUB_IMAGE="ghcr.io/owner/repo/family-hub@sha256:..."
 ```
 
 Do not set `FAMILY_HUB_SEED_DEMO_DATA=1` in production unless you intentionally want demo data.
@@ -17,32 +20,36 @@ Do not set `FAMILY_HUB_SEED_DEMO_DATA=1` in production unless you intentionally 
 ## Deploy
 
 ```bash
-scripts/deploy-vps.sh <deploy-user> <server-ip> <repo-url> [branch]
+scripts/deploy-vps.sh <deploy-user> <server-ip>
 ```
 
 The script:
-- installs Docker if needed
-- clones or updates `/opt/family-hub`
+- verifies that the shared VPS platform is already initialized
+- installs the tested Compose manifests under `/opt/family-hub`
 - writes `/etc/family-hub/app.env`
-- copies that env to `/opt/family-hub/.env.prod`
-- runs `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build`
+- pulls the immutable `FAMILY_HUB_IMAGE`
+- updates only the `family-hub` Compose project
+- waits for the internal health check
+- atomically installs only `apps/family-hub.caddy`
 
 Use `scripts/deploy-vps.sh` for direct app deploys.
 
 ## Reverse Proxy
 
-Expose only `80` and `443` publicly. Keep the app bound to localhost:
+Expose only `80` and `443` publicly. The platform-owned Caddy container and
+Family Hub share the external `vps-edge` Docker network:
 
 ```yaml
-ports:
-  - "127.0.0.1:8787:8788"
+networks:
+  edge:
+    aliases: [family-hub]
 ```
 
 Caddy example:
 
 ```caddyfile
 family.example.com {
-  reverse_proxy 127.0.0.1:8787
+  reverse_proxy family-hub:8788
 }
 ```
 
@@ -61,7 +68,9 @@ FAMILY_HUB_SEED_DEMO_DATA=1
 Inside the app container:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec family-hub npm run backup:data
+docker compose -p family-hub --env-file /etc/family-hub/app.env \
+  -f /opt/family-hub/compose.yml -f /opt/family-hub/compose.production.yml \
+  exec family-hub npm run backup:data
 ```
 
 By default, backups are written under the persisted data volume:
@@ -75,7 +84,8 @@ By default, backups are written under the persisted data volume:
 For a host-visible backup directory:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec \
+docker compose -p family-hub --env-file /etc/family-hub/app.env \
+  -f /opt/family-hub/compose.yml -f /opt/family-hub/compose.production.yml exec \
   -e BACKUP_DIR=/app/data/backups family-hub npm run backup:data
 ```
 
@@ -85,6 +95,8 @@ Copy backups off the VPS regularly.
 
 ```bash
 curl -I https://family.example.com/login
-docker compose --env-file .env.prod -f docker-compose.prod.yml ps
-docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 family-hub
+docker compose -p family-hub --env-file /etc/family-hub/app.env \
+  -f /opt/family-hub/compose.yml -f /opt/family-hub/compose.production.yml ps
+docker compose -p family-hub --env-file /etc/family-hub/app.env \
+  -f /opt/family-hub/compose.yml -f /opt/family-hub/compose.production.yml logs --tail=100 family-hub
 ```

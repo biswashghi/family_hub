@@ -14,9 +14,9 @@
     "backup:data": "node scripts/backup-data.mjs",
     "test:e2e": "node --test tests/e2e/*.test.js",
     "test:quality": "npm run typecheck && npm run build && node scripts/check-quality.mjs",
-    "docker:build": "docker build -t family-hub:local .",
-    "docker:up": "docker compose up -d --build",
-    "docker:down": "docker compose down"
+    "docker:build": "make docker-build",
+    "docker:up": "make local-up",
+    "docker:down": "make local-down"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

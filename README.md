@@ -49,6 +49,19 @@ and stores uploaded files on a mounted data volume.
 
 ## Local Development
 
+The shared Docker contract is:
+
+```bash
+make local-up
+make local-test
+make local-down
+make staging-test
+make production-validate
+```
+
+`compose.yml` defines the application and the local, staging, and production
+files add only environment-specific ports, storage, and networks.
+
 Install dependencies:
 
 ```bash
@@ -149,15 +162,20 @@ Production deployment uses the shared VPS infrastructure repo:
 - Infrastructure runbook: `https://github.com/biswashghi/hetzner_tf`
 - Repo-specific notes: `docs/hetzner-production.md`
 
-Typical deploy flow:
+Normal production releases are automatic after the GitHub Actions Docker staging
+gate. For a manual deployment, pass an immutable GHCR image:
 
 ```bash
-cd ../hetzner_tf
-./scripts/deploy-vps-prod-from-tf.sh family_hub main
+FAMILY_DOMAIN=family.example.com \
+FAMILY_HUB_IMAGE=ghcr.io/owner/repo/family-hub@sha256:... \
+./scripts/deploy-vps.sh deploy <server-ip>
 ```
 
-The deploy wrapper refreshes the shared Caddy config, pulls the selected branch
-on the VPS, writes the production environment file, and runs Docker Compose.
+The host platform must be bootstrapped once from the infrastructure repository.
+Each Family Hub release then updates only the `family-hub` Compose project and
+its `family-hub.caddy` route. It does not recreate Caddy or touch another app.
+The public container joins the external `vps-edge` network as `family-hub`; its
+SQLite volume retains the explicit name `family-hub_family-hub-data`.
 
 ## Persistent Data
 

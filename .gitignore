@@ -6,3 +6,4 @@ data
 backups
 public/app
 .DS_Store
+staging.log

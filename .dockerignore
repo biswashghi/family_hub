@@ -6,3 +6,7 @@ data
 .env.*
 !.env.example
 backups
+.git
+.github
+docs
+tests

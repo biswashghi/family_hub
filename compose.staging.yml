@@ -1,0 +1,14 @@
+services:
+  family-hub:
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+      FAMILY_HUB_SEED_DEMO_DATA: "0"
+    ports:
+      - "127.0.0.1:${FAMILY_HUB_STAGING_PORT:-18788}:8788"
+    volumes:
+      - family-hub-staging-data:/app/data
+
+volumes:
+  family-hub-staging-data:

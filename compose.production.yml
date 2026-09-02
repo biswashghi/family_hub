@@ -1,0 +1,18 @@
+services:
+  family-hub:
+    restart: unless-stopped
+    expose: ["8788"]
+    networks:
+      edge:
+        aliases: [family-hub]
+    volumes:
+      - family-hub-data:/app/data
+
+volumes:
+  family-hub-data:
+    name: family-hub_family-hub-data
+
+networks:
+  edge:
+    external: true
+    name: vps-edge
