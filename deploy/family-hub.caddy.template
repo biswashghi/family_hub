@@ -1,0 +1,4 @@
+{{FAMILY_DOMAIN}} {
+  encode zstd gzip
+  reverse_proxy family-hub:8788
+}

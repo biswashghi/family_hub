@@ -34,6 +34,12 @@ The script:
 
 Use `scripts/deploy-vps.sh` for direct app deploys.
 
+That file is only the local coordinator: it validates inputs and uploads the
+release bundle. The readable VPS-side sequence lives in
+`scripts/remote/deploy-production.sh`, while the Caddy route is
+`deploy/family-hub.caddy.template`. `make deployment-test` verifies health,
+route installation, public verification, final success, and rollback order.
+
 ## Reverse Proxy
 
 Expose only `80` and `443` publicly. The platform-owned Caddy container and

@@ -28,7 +28,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: node --check server.js && node --check src/config.js
-      - run: bash -n scripts/deploy-vps.sh
+      - run: bash -n scripts/deploy-vps.sh scripts/remote/deploy-production.sh tests/deploy-production.test.sh
       - run: make production-validate
 
   build-candidate:

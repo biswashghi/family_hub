@@ -5,7 +5,7 @@ STAGING_PROJECT ?= family-hub-staging
 STAGING_COMPOSE = docker compose -p $(STAGING_PROJECT) -f compose.yml -f compose.staging.yml
 PRODUCTION_COMPOSE = docker compose -p family-hub -f compose.yml -f compose.production.yml
 
-.PHONY: local-up local-test local-down local-reset docker-build staging-test production-validate
+.PHONY: local-up local-test local-down local-reset docker-build staging-test production-validate deployment-test
 
 local-up:
 	$(LOCAL_COMPOSE) up -d --build --wait
@@ -39,3 +39,7 @@ staging-test:
 
 production-validate:
 	$(PRODUCTION_COMPOSE) config --quiet
+	$(MAKE) deployment-test
+
+deployment-test:
+	bash tests/deploy-production.test.sh
