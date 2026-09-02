@@ -69,7 +69,7 @@ if ! compose up -d --no-build family-hub; then
   exit 1
 fi
 for attempt in $(seq 1 30); do
-  if compose exec -T family-hub node -e "fetch('http://127.0.0.1:8788/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then break; fi
+  if compose exec -T family-hub node -e "fetch('http://127.0.0.1:8788/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" </dev/null; then break; fi
   if [[ "$attempt" -eq 30 ]]; then compose logs --tail=80 family-hub >&2; rollback; exit 1; fi
   sleep 2
 done
